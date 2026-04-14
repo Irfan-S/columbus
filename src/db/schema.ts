@@ -161,6 +161,38 @@ export const images = pgTable(
   ]
 );
 
+// Description suggestions
+export const suggestionStatusEnum = pgEnum("suggestion_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
+export const siteDescriptionSuggestions = pgTable(
+  "site_description_suggestions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => diveSites.id, { onDelete: "cascade" }),
+    suggestedBy: uuid("suggested_by")
+      .notNull()
+      .references(() => profiles.id),
+    currentDescription: text("current_description").notNull(),
+    suggestedDescription: text("suggested_description").notNull(),
+    status: suggestionStatusEnum("status").notNull().default("pending"),
+    reviewedBy: uuid("reviewed_by").references(() => profiles.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("suggestions_site_idx").on(table.siteId),
+    index("suggestions_status_idx").on(table.status),
+  ]
+);
+
 // Type exports for use in application code
 export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
@@ -170,3 +202,4 @@ export type Similarity = typeof similarities.$inferSelect;
 export type NewSimilarity = typeof similarities.$inferInsert;
 export type Image = typeof images.$inferSelect;
 export type NewImage = typeof images.$inferInsert;
+export type SiteDescriptionSuggestion = typeof siteDescriptionSuggestions.$inferSelect;

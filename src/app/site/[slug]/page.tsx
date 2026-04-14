@@ -14,6 +14,7 @@ import { SimilarityCard } from "@/components/sites/similarity-card";
 import { AggregatedScores } from "@/components/sites/aggregated-scores";
 import { SiteImages } from "@/components/sites/site-images";
 import { NearbySites } from "@/components/sites/nearby-sites";
+import { SuggestDescription } from "@/components/sites/suggest-description";
 import { getNearbySites } from "@/lib/geo";
 import type { Metadata } from "next";
 import type { DiveSite } from "@/db/schema";
@@ -214,9 +215,14 @@ export default async function SiteDetailPage({ params }: PageProps) {
           />
 
           {/* Description */}
-          <p className="mb-8 leading-relaxed text-foreground/90">
-            {site.description}
-          </p>
+          <div className="mb-8">
+            <p className="leading-relaxed text-foreground/90">{site.description}</p>
+            {profile && (
+              <div className="mt-2">
+                <SuggestDescription siteId={site.id} currentDescription={site.description} />
+              </div>
+            )}
+          </div>
 
           {creator && (
             <p className="mb-8 text-xs text-muted-foreground">

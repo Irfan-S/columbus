@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { profiles } from "@/db/schema";
-import { desc, isNotNull } from "drizzle-orm";
+import { profiles, siteDescriptionSuggestions, diveSites } from "@/db/schema";
+import { desc, isNotNull, eq } from "drizzle-orm";
 import { getProfile } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { AdminProRequests } from "@/components/admin/admin-pro-requests";
 import { AdminUserRow } from "@/components/admin/admin-user-row";
+import { AdminDescriptionSuggestions } from "@/components/admin/admin-description-suggestions";
 import { Badge } from "@/components/ui/badge";
+import type { SiteDescriptionSuggestion, DiveSite, Profile } from "@/db/schema";
 
 export default async function AdminPage() {
   const profile = await getProfile();
@@ -17,6 +19,7 @@ export default async function AdminPage() {
 
   let pendingRequests: (typeof profiles.$inferSelect)[] = [];
   let allUsers: (typeof profiles.$inferSelect)[] = [];
+  let pendingSuggestions: { suggestion: SiteDescriptionSuggestion; site: DiveSite; author: Profile }[] = [];
 
   try {
     pendingRequests = await db
@@ -29,6 +32,18 @@ export default async function AdminPage() {
       .select()
       .from(profiles)
       .orderBy(desc(profiles.createdAt));
+
+    const rawSuggestions = await db
+      .select({ suggestion: siteDescriptionSuggestions, site: diveSites, author: profiles })
+      .from(siteDescriptionSuggestions)
+      .leftJoin(diveSites, eq(siteDescriptionSuggestions.siteId, diveSites.id))
+      .leftJoin(profiles, eq(siteDescriptionSuggestions.suggestedBy, profiles.id))
+      .where(eq(siteDescriptionSuggestions.status, "pending"))
+      .orderBy(desc(siteDescriptionSuggestions.createdAt));
+
+    pendingSuggestions = rawSuggestions.flatMap((r) =>
+      r.site && r.author ? [{ suggestion: r.suggestion, site: r.site, author: r.author }] : []
+    );
   } catch {
     // DB not connected
   }
@@ -43,7 +58,7 @@ export default async function AdminPage() {
         </div>
 
         {/* Stats */}
-        <div className="mb-8 grid grid-cols-3 gap-4">
+        <div className="mb-8 grid grid-cols-4 gap-4">
           <div className="rounded-lg border bg-card p-4 text-center">
             <p className="text-2xl font-bold">{allUsers.length}</p>
             <p className="text-sm text-muted-foreground">Total users</p>
@@ -58,9 +73,28 @@ export default async function AdminPage() {
             <p className="text-2xl font-bold text-amber-600">
               {pendingRequests.length}
             </p>
-            <p className="text-sm text-muted-foreground">Pending requests</p>
+            <p className="text-sm text-muted-foreground">Pro requests</p>
+          </div>
+          <div className="rounded-lg border bg-card p-4 text-center">
+            <p className="text-2xl font-bold text-amber-600">
+              {pendingSuggestions.length}
+            </p>
+            <p className="text-sm text-muted-foreground">Edit suggestions</p>
           </div>
         </div>
+
+        {/* Description suggestions */}
+        <section className="mb-10">
+          <h2 className="mb-4 text-lg font-semibold">
+            Description Edit Suggestions
+            {pendingSuggestions.length > 0 && (
+              <Badge className="ml-2 bg-amber-500 text-white">
+                {pendingSuggestions.length}
+              </Badge>
+            )}
+          </h2>
+          <AdminDescriptionSuggestions suggestions={pendingSuggestions} />
+        </section>
 
         {/* Pro requests */}
         <section className="mb-10">
