@@ -193,6 +193,32 @@ export const siteDescriptionSuggestions = pgTable(
   ]
 );
 
+// Similarity edit history — each edit saves the PRE-EDIT state here
+export const similarityHistory = pgTable(
+  "similarity_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    similarityId: uuid("similarity_id")
+      .notNull()
+      .references(() => similarities.id, { onDelete: "cascade" }),
+    editedBy: uuid("edited_by")
+      .notNull()
+      .references(() => profiles.id),
+    pelagicRating: integer("pelagic_rating"),
+    macroRating: integer("macro_rating"),
+    landscapeRating: integer("landscape_rating"),
+    currentsRating: integer("currents_rating"),
+    visibilityRating: integer("visibility_rating"),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("similarity_history_similarity_idx").on(table.similarityId),
+  ]
+);
+
 // Type exports for use in application code
 export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
@@ -203,3 +229,4 @@ export type NewSimilarity = typeof similarities.$inferInsert;
 export type Image = typeof images.$inferSelect;
 export type NewImage = typeof images.$inferInsert;
 export type SiteDescriptionSuggestion = typeof siteDescriptionSuggestions.$inferSelect;
+export type SimilarityHistoryEntry = typeof similarityHistory.$inferSelect;
