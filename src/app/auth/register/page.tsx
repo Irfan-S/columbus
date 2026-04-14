@@ -40,13 +40,108 @@ const CERT_AGENCIES = [
   { value: "OTHER", label: "Other" },
 ] as const;
 
-const CERT_LEVELS = [
-  "Open Water",
-  "Advanced Open Water",
-  "Rescue Diver",
-  "Divemaster",
-  "Instructor",
-];
+const CERT_LEVELS: Record<string, string[]> = {
+  PADI: [
+    "Scuba Diver",
+    "Open Water Diver",
+    "Advanced Open Water Diver",
+    "Rescue Diver",
+    "Master Scuba Diver",
+    "Divemaster",
+    "Assistant Instructor",
+    "Open Water Scuba Instructor (OWSI)",
+    "Master Scuba Diver Trainer (MSDT)",
+    "IDC Staff Instructor",
+    "Master Instructor",
+    "Course Director",
+  ],
+  SSI: [
+    "Scuba Diver",
+    "Open Water Diver",
+    "Advanced Open Water Diver",
+    "Stress & Rescue Diver",
+    "Master Diver",
+    "Divemaster",
+    "Assistant Instructor",
+    "Open Water Instructor",
+    "Advanced Open Water Instructor",
+    "Specialty Instructor",
+    "Master Instructor",
+    "Instructor Trainer",
+  ],
+  NAUI: [
+    "Scuba Diver",
+    "Advanced Scuba Diver",
+    "Master Scuba Diver",
+    "Rescue Scuba Diver",
+    "Divemaster",
+    "Assistant Instructor",
+    "Scuba Instructor",
+    "Master Instructor",
+    "Instructor Trainer",
+  ],
+  BSAC: [
+    "Ocean Diver",
+    "Sports Diver",
+    "Dive Leader",
+    "Advanced Diver",
+    "First Class Diver",
+    "Assistant Instructor",
+    "Club Instructor",
+    "Open Water Instructor",
+    "Advanced Instructor",
+    "National Instructor",
+  ],
+  CMAS: [
+    "One Star Diver (★)",
+    "Two Star Diver (★★)",
+    "Three Star Diver (★★★)",
+    "One Star Instructor",
+    "Two Star Instructor",
+    "Three Star Instructor",
+  ],
+  SDI: [
+    "Open Water Scuba Diver",
+    "Advanced Adventure Diver",
+    "Rescue Diver",
+    "Master Diver",
+    "Divemaster",
+    "Assistant Instructor",
+    "Open Water Scuba Instructor",
+    "Specialty Instructor",
+    "Instructor Trainer",
+  ],
+  TDI: [
+    "Intro to Tech",
+    "Nitrox Diver",
+    "Advanced Nitrox Diver",
+    "Decompression Procedures Diver",
+    "Extended Range Diver",
+    "Advanced Wreck Diver",
+    "Cave Diver",
+    "Trimix Diver",
+    "Advanced Trimix Diver",
+    "Instructor",
+    "Instructor Trainer",
+  ],
+  RAID: [
+    "Open Water 20",
+    "Open Water Plus 30",
+    "Advanced 35",
+    "Rescue Diver",
+    "Divemaster",
+    "Dive Pro",
+    "Instructor",
+    "Instructor Trainer",
+  ],
+  OTHER: [
+    "Open Water / Basic",
+    "Advanced",
+    "Rescue",
+    "Divemaster / Guide",
+    "Instructor",
+  ],
+};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -60,6 +155,13 @@ export default function RegisterPage() {
   const [certAgency, setCertAgency] = useState("");
   const [certNumber, setCertNumber] = useState("");
   const [certLevel, setCertLevel] = useState("");
+
+  const availableLevels = certAgency ? (CERT_LEVELS[certAgency] ?? []) : [];
+
+  function handleAgencyChange(v: string | null) {
+    setCertAgency(v ?? "");
+    setCertLevel(""); // reset level when agency changes
+  }
 
   async function handleStep1(e: React.FormEvent) {
     e.preventDefault();
@@ -187,7 +289,7 @@ export default function RegisterPage() {
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <Select value={certAgency} onValueChange={(v) => setCertAgency(v ?? "")}>
+                <Select value={certAgency} onValueChange={handleAgencyChange}>
                   <SelectTrigger><SelectValue placeholder="Select your agency" /></SelectTrigger>
                   <SelectContent>
                     {CERT_AGENCIES.map((a) => (<SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>))}
@@ -200,10 +302,16 @@ export default function RegisterPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="certLevel">Certification level</Label>
-                <Select value={certLevel} onValueChange={(v) => setCertLevel(v ?? "")}>
-                  <SelectTrigger><SelectValue placeholder="Select your level" /></SelectTrigger>
+                <Select
+                  value={certLevel}
+                  onValueChange={(v) => setCertLevel(v ?? "")}
+                  disabled={!certAgency}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={certAgency ? "Select your level" : "Select agency first"} />
+                  </SelectTrigger>
                   <SelectContent>
-                    {CERT_LEVELS.map((l) => (<SelectItem key={l} value={l}>{l}</SelectItem>))}
+                    {availableLevels.map((l) => (<SelectItem key={l} value={l}>{l}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>

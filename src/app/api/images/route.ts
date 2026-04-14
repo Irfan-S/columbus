@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeFile } from "fs/promises";
 import { join } from "path";
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 import { db } from "@/db";
 import { images } from "@/db/schema";
 import { requireAuth } from "@/lib/auth";
@@ -9,6 +10,7 @@ import { requireAuth } from "@/lib/auth";
 const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const THUMB_WIDTH = 400; // px, height auto-scaled
 
 export async function POST(request: Request) {
   try {
@@ -45,24 +47,32 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate filename
-    const ext = file.name.split(".").pop() || "jpg";
-    const filename = `${randomUUID()}.${ext}`;
+    // Generate filenames
+    const id = randomUUID();
     const subdir = diveSiteId ? "sites" : "similarities";
+    const filename = `${id}.webp`;
+    const thumbFilename = `${id}_thumb.webp`;
     const filepath = join(UPLOAD_DIR, subdir, filename);
+    const thumbPath = join(UPLOAD_DIR, subdir, thumbFilename);
 
-    // Write file
+    // Process with sharp: save full (capped at 2000px wide) + thumbnail
     const bytes = await file.arrayBuffer();
-    await writeFile(filepath, Buffer.from(bytes));
+    const buffer = Buffer.from(bytes);
+
+    await Promise.all([
+      sharp(buffer).resize({ width: 2000, withoutEnlargement: true }).webp({ quality: 85 }).toFile(filepath),
+      sharp(buffer).resize({ width: THUMB_WIDTH }).webp({ quality: 80 }).toFile(thumbPath),
+    ]);
 
     const url = `/uploads/${subdir}/${filename}`;
+    const thumbnailUrl = `/uploads/${subdir}/${thumbFilename}`;
 
     // Save to DB
     const [image] = await db
       .insert(images)
       .values({
         url,
-        thumbnailUrl: url, // Same for now; could generate thumbnails later
+        thumbnailUrl,
         uploadedBy: profile.id,
         diveSiteId: diveSiteId || null,
         similarityId: similarityId || null,

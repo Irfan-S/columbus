@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { db } from "@/db";
 import { diveSites, similarities, images } from "@/db/schema";
 import { count, isNotNull } from "drizzle-orm";
@@ -51,22 +50,6 @@ export default async function HomePage() {
       <Header profile={profile} />
       <main className="relative flex-1">
         <HomeMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} />
-
-        {/* Logo overlay — visible when no sites / first visit */}
-        {sites.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="pointer-events-auto text-center">
-              <Image
-                src="/logo-text-slogan.png"
-                alt="Columbus — Dive Site Comparison Engine"
-                width={320}
-                height={180}
-                className="mx-auto h-36 w-auto opacity-90 drop-shadow-lg sm:h-44"
-                priority
-              />
-            </div>
-          </div>
-        )}
 
         {/* Site count pill */}
         <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 pointer-events-none">
