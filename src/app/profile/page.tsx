@@ -3,6 +3,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { similarities, diveSites, profiles } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { getProfile } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +14,7 @@ export default async function ProfilePage() {
   const profile = await getProfile();
   if (!profile) redirect("/auth/login?callbackUrl=/profile");
 
-  // Get user's comparisons
+  // Get user's comparisons — single query with joins
   let userComparisons: {
     similarity: typeof similarities.$inferSelect;
     siteA: typeof diveSites.$inferSelect;
@@ -21,26 +22,20 @@ export default async function ProfilePage() {
   }[] = [];
 
   try {
-    const userSimilarities = await db
-      .select()
+    const siteATable = alias(diveSites, "site_a");
+    const siteBTable = alias(diveSites, "site_b");
+
+    const rows = await db
+      .select({ similarity: similarities, siteA: siteATable, siteB: siteBTable })
       .from(similarities)
+      .leftJoin(siteATable, eq(similarities.siteAId, siteATable.id))
+      .leftJoin(siteBTable, eq(similarities.siteBId, siteBTable.id))
       .where(eq(similarities.createdBy, profile.id))
       .orderBy(desc(similarities.createdAt));
 
-    for (const sim of userSimilarities) {
-      const [siteA] = await db
-        .select()
-        .from(diveSites)
-        .where(eq(diveSites.id, sim.siteAId))
-        .limit(1);
-      const [siteB] = await db
-        .select()
-        .from(diveSites)
-        .where(eq(diveSites.id, sim.siteBId))
-        .limit(1);
-
-      if (siteA && siteB) {
-        userComparisons.push({ similarity: sim, siteA, siteB });
+    for (const row of rows) {
+      if (row.siteA && row.siteB) {
+        userComparisons.push({ similarity: row.similarity, siteA: row.siteA, siteB: row.siteB });
       }
     }
   } catch {
@@ -109,9 +104,11 @@ export default async function ProfilePage() {
                       <span className="text-muted-foreground">&</span>
                       <span className="font-medium">{siteB.name}</span>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
-                      {similarity.note}
-                    </p>
+                    {similarity.note && (
+                      <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
+                        {similarity.note}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </Link>

@@ -204,42 +204,50 @@ export function SiteList({ sites, similarityCounts = {}, imageCounts = {} }: Sit
             const simCount = similarityCounts[site.id] ?? 0;
             const imgCount = imageCounts[site.id] ?? 0;
             return (
-              <Link key={site.id} href={`/site/${site.slug}`}>
-                <Card className="transition-colors hover:bg-accent/50">
-                  <CardContent className="flex items-center justify-between py-3">
-                    <div>
-                      <p className="font-medium">{site.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {site.region}, {site.country}
+              <Card key={site.id} className="transition-colors hover:bg-accent/50">
+                <CardContent className="flex items-center gap-3 py-3">
+                  {/* Left: site info links to detail page */}
+                  <Link href={`/site/${site.slug}`} className="min-w-0 flex-1">
+                    <p className="font-medium">{site.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {site.region}, {site.country}
+                    </p>
+                    {(simCount > 0 || imgCount > 0) && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {simCount > 0 && `${simCount} comparison${simCount !== 1 ? "s" : ""}`}
+                        {simCount > 0 && imgCount > 0 && " · "}
+                        {imgCount > 0 && `${imgCount} photo${imgCount !== 1 ? "s" : ""}`}
                       </p>
-                      {(simCount > 0 || imgCount > 0) && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {simCount > 0 && `${simCount} comparison${simCount !== 1 ? "s" : ""}`}
-                          {simCount > 0 && imgCount > 0 && " · "}
-                          {imgCount > 0 && `${imgCount} photo${imgCount !== 1 ? "s" : ""}`}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      {site.difficulty && (
-                        <Badge variant="secondary" className="capitalize">
-                          {site.difficulty}
-                        </Badge>
-                      )}
-                      {site.accessType && (
-                        <Badge variant="outline" className="capitalize">
-                          {site.accessType}
-                        </Badge>
-                      )}
-                      {site.siteTypes?.slice(0, 2).map((type) => (
-                        <Badge key={type} variant="outline" className="capitalize">
-                          {type}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    )}
+                  </Link>
+
+                  {/* Right: badges + compare action */}
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                    {site.difficulty && (
+                      <Badge variant="secondary" className="capitalize">
+                        {site.difficulty}
+                      </Badge>
+                    )}
+                    {site.accessType && (
+                      <Badge variant="outline" className="capitalize">
+                        {site.accessType}
+                      </Badge>
+                    )}
+                    {site.siteTypes?.slice(0, 2).map((type) => (
+                      <Badge key={type} variant="outline" className="capitalize">
+                        {type}
+                      </Badge>
+                    ))}
+                    <Link
+                      href={`/compare?from=${site.id}`}
+                      className="ml-1 text-xs text-muted-foreground hover:text-primary"
+                      title="Compare this site"
+                    >
+                      + Compare
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

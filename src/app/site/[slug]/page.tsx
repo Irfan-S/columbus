@@ -3,6 +3,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { diveSites, similarities, profiles, images } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { getProfile } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { Badge } from "@/components/ui/badge";
@@ -77,7 +78,7 @@ export default async function SiteDetailPage({ params }: PageProps) {
 
   if (!site) notFound();
 
-  // Get similarities for this site
+  // Get similarities for this site — single query with joins
   let siteSimilarities: {
     similarity: typeof similarities.$inferSelect;
     otherSite: typeof diveSites.$inferSelect;
@@ -85,36 +86,21 @@ export default async function SiteDetailPage({ params }: PageProps) {
   }[] = [];
 
   try {
-    const rawSimilarities = await db
-      .select()
+    const siteATable = alias(diveSites, "site_a");
+    const siteBTable = alias(diveSites, "site_b");
+
+    const rows = await db
+      .select({ similarity: similarities, siteA: siteATable, siteB: siteBTable, author: profiles })
       .from(similarities)
-      .where(
-        or(eq(similarities.siteAId, site.id), eq(similarities.siteBId, site.id))
-      );
+      .leftJoin(siteATable, eq(similarities.siteAId, siteATable.id))
+      .leftJoin(siteBTable, eq(similarities.siteBId, siteBTable.id))
+      .leftJoin(profiles, eq(similarities.createdBy, profiles.id))
+      .where(or(eq(similarities.siteAId, site.id), eq(similarities.siteBId, site.id)));
 
-    // For each similarity, get the other site and the author
-    for (const sim of rawSimilarities) {
-      const otherSiteId =
-        sim.siteAId === site.id ? sim.siteBId : sim.siteAId;
-
-      const [otherSite] = await db
-        .select()
-        .from(diveSites)
-        .where(eq(diveSites.id, otherSiteId))
-        .limit(1);
-
-      const [author] = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.id, sim.createdBy))
-        .limit(1);
-
-      if (otherSite && author) {
-        siteSimilarities.push({
-          similarity: sim,
-          otherSite,
-          author,
-        });
+    for (const row of rows) {
+      const otherSite = row.similarity.siteAId === site.id ? row.siteB : row.siteA;
+      if (otherSite && row.author) {
+        siteSimilarities.push({ similarity: row.similarity, otherSite, author: row.author });
       }
     }
   } catch {
