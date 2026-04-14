@@ -415,41 +415,57 @@ Divers frequently lack connectivity — remote islands, liveaboards, developing 
 
 ## 9. Implementation Phases
 
-### Phase 1: Foundation (MVP)
-- [ ] Next.js project setup with TypeScript, Tailwind, shadcn/ui
-- [ ] Supabase project: database schema (PostGIS enabled), auth, storage bucket
-- [ ] User registration with cert details (agency-agnostic)
-- [ ] Basic Mapbox integration (globe view with clustered site pins)
-- [ ] Dive site CRUD (pro only) with map pin placement and Mapbox geocoding
-- [ ] Site detail page with badges (difficulty, access, type)
-- [ ] Deploy to Vercel
+### Phase 1: Foundation (MVP) ✅ DONE
+- [x] Next.js 16 + TypeScript + Tailwind CSS v4 + shadcn/ui v4 (base-ui primitives)
+- [x] PostgreSQL 16 via Docker Compose (port 5433, bind-mount data at ./data/postgres)
+- [x] Drizzle ORM schema + push to DB
+- [x] NextAuth v5 credentials provider (JWT sessions, bcrypt). Supabase removed (IPv6 issues)
+- [x] User registration with cert details (agency + level — level options are agency-specific)
+- [x] Mapbox GL JS globe with clustered site pins (outdoors-v12 style)
+- [x] Dive site CRUD (pro only) with map pin placement + Mapbox geocoding
+- [x] Site detail page with difficulty/access/type/depth/visibility badges
+- [x] Header with auth state + navigation
 
-### Phase 2: Core Comparison Engine
-- [ ] Similarity creation flow (the main feature — 3-step: pick site B, rate axes, submit)
-- [ ] Similarity display on site detail pages with aggregated scores
-- [ ] Aggregated similarity scores (average across all users' ratings per pair per axis)
-- [ ] Search with type-ahead (pg_trgm)
-- [ ] Basic filtering (region, site type, difficulty)
+### Phase 2: Core Comparison Engine ✅ DONE
+- [x] Similarity creation flow (3-step wizard: select sites, rate axes, submit with note)
+- [x] Similarity detail page (/compare/[id]) with rating bars
+- [x] Aggregated scores on site detail page (per-axis averages across all comparisons)
+- [x] Type-ahead site search API (/api/sites/search?q=) — portal dropdown (fixed overflow clipping)
+- [x] Search page with client-side filtering (difficulty, access type, site type, has-images)
+- [x] Sort on search page (most compared / recently added / A-Z / nearest)
+- [x] Similarity deduplication per user+pair
 
-### Phase 3: Images & Polish
-- [ ] Image upload to Supabase Storage (tagged to site or comparison)
-- [ ] Image gallery on site detail and comparison pages
-- [ ] PWA setup (manifest, service worker, install prompt)
-- [ ] Mobile UX polish (thumb zones, bottom nav, sheet overlays)
-- [ ] Image optimization (thumbnails, lazy loading, responsive srcset)
+### Phase 3: Images & PWA ✅ DONE
+- [x] Image upload API (local filesystem, 5MB max, JPEG/PNG/WebP)
+- [x] Sharp processing: full images WebP 2000px/q85, thumbnails WebP 400px/q80
+- [x] Image gallery + lightbox on site detail and comparison pages
+- [x] PWA manifest + service worker (network-first HTML, cache-first assets)
+- [x] Apple web app meta tags, safe area padding
+- [x] Mobile bottom nav (Explore / Search / Compare / Profile)
 
-### Phase 4: Discovery & Growth
-- [ ] "Sites similar to X" search mode (reverse lookup)
-- [ ] Similarity network visualization (sites connected by comparison edges — graph view)
-- [ ] Pro verification workflow (admin approves pro status)
-- [ ] User profiles (their comparisons, sites they've contributed)
-- [ ] SEO optimization for site pages (SSR, meta tags, structured data)
+### Phase 4: Discovery ✅ DONE
+- [x] User profiles (/profile — comparisons list + pro request button)
+- [x] Pro verification workflow (request on profile, admin panel approve/deny)
+- [x] Admin panel: pro requests, inline role change per user (diver/pro/admin)
+- [x] Admin: delete any comparison with confirmation
+- [x] SEO: generateMetadata on /site/[slug] — og:title, description, canonical, JSON-LD TouristAttraction
+- [x] /site/[slug]/similar — ranked similarity page (per-axis averages, sorted by overall score, #1/#2 labels)
+- [x] Edit dive site (/pro/edit-site/[id]) — pros edit own sites, admins edit any
+- [x] Photos on comparison detail page (any logged-in user can upload)
+- [x] Similarity + image counts on site list cards and map popups
+- [x] typical_visibility_m field on sites
+- [x] Description edit suggestions — members submit, admins approve/reject
+- [x] Comparison editing with full edit history trail (pre-edit snapshots, collapsible timeline)
+- [x] Nearby sites auto-detection (2km Haversine radius) on site detail page
+- [x] "Would you dive here again?" thumbs up/down rating on site detail pages
+- [x] Rating overview (% + progress bar) in map popup with inline vote buttons
+- [x] Geolocation-based sort on search page (nearest first)
 
 ### Phase 5: Future
 - [ ] Offline mode with queued similarity submissions
-- [ ] Push notifications
-- [ ] Seasonal metadata on dive sites (best months, water temp by season — from WannaDive pattern)
-- [ ] Marine life tagging on sites (from SSI's wildlife list concept)
+- [ ] Push notifications (new comparison on a site you've rated)
+- [ ] Seasonal metadata on dive sites (best months, water temp by season)
+- [ ] Marine life tagging on sites
 - [ ] Advanced search (find sites where pelagic > 4 AND visibility > 3)
-- [ ] Natural language search (from DiveSpot's AI search concept)
-- [ ] Community features (follow users, activity feed — but only if it doesn't become Deepblu)
+- [ ] Natural language search
+- [ ] Similarity network graph visualization

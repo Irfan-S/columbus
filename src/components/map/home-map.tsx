@@ -7,8 +7,11 @@ interface HomeMapProps {
   sites: DiveSite[];
   similarityCounts?: Record<string, number>;
   heroImages?: Record<string, string>;
+  ratingData?: Record<string, { yes: number; no: number }>;
+  loggedIn?: boolean;
+  userVotes?: Record<string, boolean>;
 }
 
-export function HomeMap({ sites, similarityCounts = {}, heroImages = {} }: HomeMapProps) {
-  return <DiveMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} />;
+export function HomeMap({ sites, similarityCounts = {}, heroImages = {}, ratingData = {}, loggedIn = false, userVotes = {} }: HomeMapProps) {
+  return <DiveMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} ratingData={ratingData} loggedIn={loggedIn} userVotes={userVotes} />;
 }

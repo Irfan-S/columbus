@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { diveSites, similarities, images } from "@/db/schema";
+import { diveSites, similarities, images, siteRatings } from "@/db/schema";
 import { count, isNotNull } from "drizzle-orm";
 import { getProfile } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
@@ -11,6 +11,8 @@ export default async function HomePage() {
   let sites: (typeof diveSites.$inferSelect)[] = [];
   let similarityCounts: Record<string, number> = {};
   let heroImages: Record<string, string> = {};
+  let ratingData: Record<string, { yes: number; no: number }> = {};
+  let userVotes: Record<string, boolean> = {};
 
   try {
     sites = await db.select().from(diveSites);
@@ -41,6 +43,19 @@ export default async function HomePage() {
         heroImages[row.diveSiteId] = row.url;
       }
     }
+
+    // Rating counts per site + current user's votes
+    const allRatings = await db
+      .select({ siteId: siteRatings.siteId, wouldDiveAgain: siteRatings.wouldDiveAgain, ratedBy: siteRatings.ratedBy })
+      .from(siteRatings);
+    for (const r of allRatings) {
+      if (!ratingData[r.siteId]) ratingData[r.siteId] = { yes: 0, no: 0 };
+      if (r.wouldDiveAgain) ratingData[r.siteId].yes++;
+      else ratingData[r.siteId].no++;
+      if (profile && r.ratedBy === profile.id) {
+        userVotes[r.siteId] = r.wouldDiveAgain;
+      }
+    }
   } catch {
     // DB not connected yet — show empty map
   }
@@ -49,7 +64,14 @@ export default async function HomePage() {
     <div className="flex h-screen flex-col">
       <Header profile={profile} />
       <main className="relative flex-1">
-        <HomeMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} />
+        <HomeMap
+          sites={sites}
+          similarityCounts={similarityCounts}
+          heroImages={heroImages}
+          ratingData={ratingData}
+          loggedIn={!!profile}
+          userVotes={userVotes}
+        />
 
         {/* Site count pill */}
         <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 pointer-events-none">

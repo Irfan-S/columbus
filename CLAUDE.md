@@ -35,12 +35,15 @@ Uses `@base-ui/react` primitives. Key differences from v3:
 - `Select.onValueChange` passes `string | null`, not `string`
 - `useSearchParams()` must be in a Suspense boundary for static generation
 
-## Data Model (4 entities)
+## Data Model (7 entities)
 
 - **profiles**: id, email, password_hash, display_name, cert_agency, cert_number, cert_level, role (diver/pro/admin), pro_requested_at?
 - **dive_sites**: id, name, slug, description, lat/long, country, region, difficulty, access_type, max_depth_m?, typical_visibility_m?, site_types[], created_by (pro only)
 - **similarities**: id, site_a_id, site_b_id, created_by, pelagic/macro/landscape/currents/visibility ratings (1-5, all optional, min 1 required), note? (optional, 100 words max if provided). Duplicate comparisons (same user, same pair) are rejected.
 - **images**: id, url, thumbnail_url, uploaded_by, dive_site_id?, similarity_id?, caption
+- **site_ratings**: id, site_id, rated_by, would_dive_again (boolean), created_at. Unique per user+site. Powers "Would you dive here again?" on site detail + map popup vote buttons.
+- **similarity_history**: id, similarity_id, edited_by, pre-edit snapshot of all 5 ratings + note, created_at. Append-only. Powers the collapsible edit history timeline on /compare/[id].
+- **site_description_suggestions**: id, site_id, suggested_by, current_description, suggested_description, status (pending/approved/rejected), reviewed_by?, reviewed_at?
 
 Schema: `src/db/schema.ts`
 
@@ -104,7 +107,7 @@ src/
     layout/header.tsx       — Sticky nav (Admin Panel link for admins)
     layout/bottom-nav.tsx   — Mobile bottom nav (Explore/Search/Compare/Profile)
     layout/sw-register.tsx  — Service worker registration
-    map/dive-map.tsx        — Mapbox globe (outdoors-v12, clusters, hero img popup)
+    map/dive-map.tsx        — Mapbox globe (outdoors-v12, clusters, hero img popup + inline vote buttons)
     map/home-map.tsx        — Client wrapper for homepage
     map/pin-picker-map.tsx  — Click-to-place pin for site creation/editing
     sites/site-list.tsx     — Filtered+sorted list (nearest/recent/A-Z/most-compared)
@@ -114,26 +117,31 @@ src/
     sites/nearby-sites.tsx  — Auto-detected sites within 2km
     sites/site-images.tsx   — Image gallery + upload for sites
     sites/edit-site-form.tsx — Edit dive site form
+    sites/dive-again-rating.tsx — "Would you dive here again?" thumbs up/down with optimistic updates
+    sites/suggest-description.tsx — Member submits description edits, admin approves/rejects
     comparison/compare-flow.tsx — 2-step comparison wizard
     comparison/star-rating.tsx — 1-5 dot rating input
-    comparison/site-search.tsx — Type-ahead site search dropdown
+    comparison/site-search.tsx — Type-ahead site search dropdown (portal, position:fixed to escape overflow)
     comparison/comparison-images.tsx — Images on comparison detail page
+    comparison/edit-comparison.tsx — Inline edit form for comparisons (creator/admin)
+    comparison/comparison-history.tsx — Collapsible edit history timeline
     images/image-gallery.tsx — Horizontal scroll + lightbox
     images/image-upload.tsx — File picker + caption
     admin/admin-pro-requests.tsx — Approve/deny pro requests
     admin/admin-user-row.tsx — Inline role change per user
     admin/admin-delete-comparison.tsx — Admin delete with confirmation
+    admin/admin-description-suggestions.tsx — Approve/reject description edit suggestions
     profile/pro-request-button.tsx — Request pro status
   db/
-    schema.ts               — Drizzle schema (all 4 tables)
-    index.ts                — DB client
+    schema.ts               — Drizzle schema (all 7 tables)
+    index.ts                — DB client (globalThis singleton to prevent HMR pool exhaustion)
   lib/
     auth.ts                 — NextAuth config + getProfile, requireAuth, requirePro
     auth-types.ts           — NextAuth type augmentations
     geo.ts                  — Haversine vicinity query (getNearbySites, 2km radius)
     slugify.ts              — URL slug generation
     utils.ts                — shadcn/ui cn() utility
-  middleware.ts             — Protects /compare, /profile, /pro, /admin
+  proxy.ts                  — Protects /compare, /profile, /pro, /admin (named proxy not middleware)
 ```
 
 ## Page Routes
@@ -154,55 +162,57 @@ src/
 
 ## Development Phases
 
-### Phase 1: Foundation (MVP) <-- CURRENT
-- [x] Next.js + TypeScript + Tailwind + shadcn/ui setup
-- [x] Drizzle schema (PostGIS-ready, all 4 tables with indexes)
-- [x] NextAuth v5 (credentials + JWT, cert-gated registration)
-- [x] Docker Compose (PostgreSQL 16 on port 5433)
-- [x] Schema pushed to local DB (all 4 tables)
+### Phase 1: Foundation (MVP) ✅ DONE
+- [x] Next.js 16 + TypeScript + Tailwind CSS v4 + shadcn/ui v4
+- [x] Drizzle schema + push. Docker Compose PostgreSQL 16 on port 5433 (data persisted at ./data/postgres)
+- [x] NextAuth v5 credentials + JWT, cert-gated registration (cert level options are agency-specific)
 - [x] Mapbox globe with clustered site pins
 - [x] Dive site CRUD (pro only, with API + map pin + geocoding)
 - [x] Site detail page with similarity display
 - [x] Search page with client-side filtering
 - [x] Header with auth state + navigation
-- [x] Dev server running (http://localhost:3000)
 
-### Phase 2: Comparison Engine <-- DONE
+### Phase 2: Comparison Engine ✅ DONE
 - [x] Similarity creation flow (3-step: select sites, rate 5 axes, submit with note)
 - [x] Similarity detail page (/compare/[id]) with rating bars
 - [x] Aggregated scores component on site detail page
-- [x] Site search API with type-ahead (/api/sites/search?q=)
-- [x] Filtering (difficulty, access type, site type) on search page
-- [x] Similarities API with validation (min 1 rating, 100 word max, sites exist)
+- [x] Site search API with type-ahead (/api/sites/search?q=) — portal dropdown escapes overflow
+- [x] Filtering (difficulty, access type, site type, has-images) on search page
+- [x] Sort on search page (most compared / recently added / A-Z / nearest)
+- [x] Similarities API with validation (min 1 rating, 100 word max, sites exist, deduped per user+pair)
 
-### Phase 3: Images & PWA <-- DONE
+### Phase 3: Images & PWA ✅ DONE
 - [x] Image upload API (local filesystem, 5MB max, JPEG/PNG/WebP)
-- [x] Image gallery component (horizontal scroll, lightbox on click)
-- [x] Upload + gallery on site detail pages (live refresh)
+- [x] Sharp processing: full WebP 2000px/q85, thumbnails 400px/q80
+- [x] Image gallery + lightbox on site detail and comparison pages
 - [x] PWA manifest + service worker (network-first HTML, cache-first assets)
-- [x] Apple web app meta tags
+- [x] Apple web app meta tags, safe area padding
 - [x] Mobile bottom nav (Explore/Search/Compare/Profile)
-- [x] Safe area padding, responsive bottom spacing
 
-### Phase 4: Discovery
+### Phase 4: Discovery ✅ DONE
 - [x] User profiles (/profile — comparisons list + pro request button)
-- [x] Pro verification workflow (request on profile page, admin panel at /admin approve/deny)
-- [x] SEO: generateMetadata on /site/[slug] with og:title, description, canonical URL + JSON-LD TouristAttraction
-- [x] /site/[slug]/similar — dedicated overflow page for all comparisons (site detail shows first 5 + "View all")
-- [x] Edit dive site (/pro/edit-site/[id]) — pros edit own sites, admins edit any; pencil icon on dashboard
-- [x] Photos on comparison detail page (/compare/[id]) — any logged-in user can add photos
-- [x] Sort on search page — most compared / recently added / name A-Z
-- [x] has-images filter on search page
-- [x] Similarity + image counts shown in site list cards and map popups
-- [x] typical_visibility_m field — schema, add-site form, edit-site form, site detail badges
-- [x] Admin: inline role change dropdown per user (diver/pro/admin); admins cannot change own role
+- [x] Pro verification workflow (request on profile page, admin panel approve/deny)
+- [x] Admin: inline role change per user; delete any comparison; description suggestion review
+- [x] SEO: generateMetadata on /site/[slug] — og:title, description, canonical, JSON-LD TouristAttraction
+- [x] /site/[slug]/similar — ranked comparisons page (per-axis averages, sorted by score)
+- [x] Edit dive site (/pro/edit-site/[id]) — pros edit own, admins edit any
+- [x] Photos on comparison detail page (any logged-in user)
+- [x] Similarity + image counts on site list cards and map popups
+- [x] typical_visibility_m field on sites
+- [x] Description edit suggestions — members submit, admins approve/reject
+- [x] Comparison editing with full edit history trail (pre-edit snapshots, collapsible timeline)
+- [x] Nearby sites auto-detection (2km Haversine) on site detail page
+- [x] "Would you dive here again?" thumbs up/down on site detail (optimistic updates, aggregate bar)
+- [x] Rating overview in map popup — progress bar + %, inline 👍/👎 vote buttons (window.__columbusVote handler)
 
 ### Phase 5: Future
 - [ ] Offline queued submissions
+- [ ] Push notifications (new comparison on a site you've rated)
 - [ ] Seasonal metadata on sites
 - [ ] Marine life tagging
-- [ ] Advanced filtered search
+- [ ] Advanced filtered search (pelagic > 4 AND visibility > 3)
 - [ ] Natural language search
+- [ ] Similarity network graph visualization
 
 ## Commands
 

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
-import { diveSites, similarities, profiles, images } from "@/db/schema";
+import { diveSites, similarities, profiles, images, siteRatings } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getProfile } from "@/lib/auth";
@@ -15,6 +15,7 @@ import { AggregatedScores } from "@/components/sites/aggregated-scores";
 import { SiteImages } from "@/components/sites/site-images";
 import { NearbySites } from "@/components/sites/nearby-sites";
 import { SuggestDescription } from "@/components/sites/suggest-description";
+import { DiveAgainRating } from "@/components/sites/dive-again-rating";
 import { getNearbySites } from "@/lib/geo";
 import type { Metadata } from "next";
 import type { DiveSite } from "@/db/schema";
@@ -140,6 +141,25 @@ export default async function SiteDetailPage({ params }: PageProps) {
     // ignore
   }
 
+  // Get "would dive again" ratings
+  let ratingYes = 0;
+  let ratingNo = 0;
+  let userRating: boolean | null = null;
+  try {
+    const allRatings = await db
+      .select({ wouldDiveAgain: siteRatings.wouldDiveAgain, ratedBy: siteRatings.ratedBy })
+      .from(siteRatings)
+      .where(eq(siteRatings.siteId, site.id));
+    ratingYes = allRatings.filter((r) => r.wouldDiveAgain).length;
+    ratingNo = allRatings.filter((r) => !r.wouldDiveAgain).length;
+    if (profile) {
+      const myVote = allRatings.find((r) => r.ratedBy === profile.id);
+      userRating = myVote ? myVote.wouldDiveAgain : null;
+    }
+  } catch {
+    // ignore
+  }
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "TouristAttraction",
@@ -230,6 +250,17 @@ export default async function SiteDetailPage({ params }: PageProps) {
               {creator.certLevel})
             </p>
           )}
+
+          {/* Would dive again rating */}
+          <div className="mb-8">
+            <DiveAgainRating
+              siteId={site.id}
+              userRating={userRating}
+              initialYes={ratingYes}
+              initialNo={ratingNo}
+              loggedIn={!!profile}
+            />
+          </div>
 
           {/* Nearby sites — auto-detected by vicinity */}
           {nearbySites.length > 0 && (

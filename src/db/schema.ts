@@ -5,6 +5,7 @@ import {
   timestamp,
   real,
   integer,
+  boolean,
   pgEnum,
   check,
   uniqueIndex,
@@ -193,6 +194,28 @@ export const siteDescriptionSuggestions = pgTable(
   ]
 );
 
+// "Would you dive here again?" ratings
+export const siteRatings = pgTable(
+  "site_ratings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => diveSites.id, { onDelete: "cascade" }),
+    ratedBy: uuid("rated_by")
+      .notNull()
+      .references(() => profiles.id),
+    wouldDiveAgain: boolean("would_dive_again").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("site_ratings_site_user_idx").on(table.siteId, table.ratedBy),
+    index("site_ratings_site_idx").on(table.siteId),
+  ]
+);
+
 // Similarity edit history — each edit saves the PRE-EDIT state here
 export const similarityHistory = pgTable(
   "similarity_history",
@@ -230,3 +253,4 @@ export type Image = typeof images.$inferSelect;
 export type NewImage = typeof images.$inferInsert;
 export type SiteDescriptionSuggestion = typeof siteDescriptionSuggestions.$inferSelect;
 export type SimilarityHistoryEntry = typeof similarityHistory.$inferSelect;
+export type SiteRating = typeof siteRatings.$inferSelect;
