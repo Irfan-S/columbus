@@ -285,13 +285,13 @@ Image {
 | **Language** | TypeScript | Type safety across stack |
 | **Styling** | Tailwind CSS | Utility-first, fast iteration, consistent design system |
 | **UI Components** | shadcn/ui | Accessible, unstyled primitives. Clean aesthetic matching Zentacle's whitespace-forward design |
-| **Database** | PostgreSQL (via Supabase) | PostGIS for geospatial queries (learned from WannaDive/DiveSpot map needs), Supabase gives auth + storage + realtime out of the box |
-| **ORM** | Drizzle ORM | Type-safe, lightweight, good Postgres/PostGIS support |
-| **Auth** | Supabase Auth | Email/password, handles sessions, integrates with RLS |
-| **Maps** | Mapbox GL JS | Best-in-class for interactive globe/map. Geocoding API for search. Supports offline tile packs (critical for divers — learned from DiveMate's offline maps) |
-| **Image Storage** | Supabase Storage | S3-compatible, integrated with auth, image transformations |
+| **Database** | PostgreSQL 16 (Docker, `postgres:16-alpine`) | Local dev via Docker Compose on port 5433. No cloud dependency. PostGIS can be added when needed for geospatial queries |
+| **ORM** | Drizzle ORM + postgres.js | Type-safe, lightweight, direct postgres connection |
+| **Auth** | NextAuth v5 (credentials provider) | Self-hosted, JWT sessions, bcrypt password hashing. No third-party auth dependency. Replaces Supabase Auth (removed due to IPv6/connectivity issues) |
+| **Maps** | Mapbox GL JS | Best-in-class for interactive globe/map. Geocoding API for search. Supports offline tile packs |
+| **Image Storage** | Local filesystem (S3-compatible in future) | Keep it simple for MVP |
 | **PWA** | next-pwa / Serwist | Service worker generation, offline caching, install prompt |
-| **Hosting** | Vercel | Native Next.js support, edge functions, preview deployments |
+| **Hosting** | Docker Compose (local) / Vercel (future) | Dev runs entirely local. Production deployment TBD |
 | **Search** | PostgreSQL full-text search (pg_trgm) | Good enough to start. No need for Elasticsearch at this scale |
 
 ---
