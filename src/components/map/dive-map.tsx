@@ -10,6 +10,7 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 interface DiveMapProps {
   sites: DiveSite[];
   similarityCounts?: Record<string, number>;
+  heroImages?: Record<string, string>;
   onSiteClick?: (site: DiveSite) => void;
   interactive?: boolean;
   center?: [number, number];
@@ -20,6 +21,7 @@ interface DiveMapProps {
 export function DiveMap({
   sites,
   similarityCounts = {},
+  heroImages = {},
   onSiteClick,
   interactive = true,
   center = [20, 15],
@@ -32,6 +34,8 @@ export function DiveMap({
   sitesRef.current = sites;
   const similarityCountsRef = useRef(similarityCounts);
   similarityCountsRef.current = similarityCounts;
+  const heroImagesRef = useRef(heroImages);
+  heroImagesRef.current = heroImages;
 
   const onSiteClickRef = useRef(onSiteClick);
   onSiteClickRef.current = onSiteClick;
@@ -189,20 +193,31 @@ export function DiveMap({
         }
 
         const simCount = similarityCountsRef.current[props.id] ?? 0;
+        const heroImg = heroImagesRef.current[props.id];
+
         const simText = simCount > 0
-          ? `<p style="font-size:11px;color:#64748b;margin:4px 0 0;">${simCount} comparison${simCount !== 1 ? "s" : ""}</p>`
+          ? `<span style="font-size:11px;color:#64748b;">${simCount} comparison${simCount !== 1 ? "s" : ""}</span>`
           : "";
 
-        new mapboxgl.Popup({ closeButton: false, maxWidth: "240px" })
+        const siteTypes: string[] = props.siteTypes ? JSON.parse(props.siteTypes) : [];
+        const typeText = siteTypes.length > 0
+          ? `<p style="font-size:11px;color:#64748b;margin:3px 0 0;text-transform:capitalize;">${siteTypes.slice(0, 3).join(" · ")}</p>`
+          : "";
+
+        new mapboxgl.Popup({ closeButton: false, maxWidth: "220px" })
           .setLngLat(e.lngLat)
           .setHTML(
-            `<div style="font-family: system-ui, sans-serif;">
-              <a href="/site/${props.slug}" style="text-decoration:none;color:inherit;">
+            `<div style="font-family:system-ui,sans-serif;font-size:13px;">
+              ${heroImg ? `<img src="${heroImg}" style="width:100%;height:72px;object-fit:cover;border-radius:4px;margin-bottom:6px;display:block;" />` : ""}
+              <a href="/site/${props.slug}" style="text-decoration:none;color:inherit;display:block;">
                 <p style="font-weight:600;font-size:14px;margin:0 0 2px;">${props.name}</p>
                 <p style="font-size:12px;color:#64748b;margin:0;">${props.region}, ${props.country}</p>
-                ${props.difficulty ? `<p style="font-size:11px;color:#0369a1;margin:4px 0 0;text-transform:capitalize;">${props.difficulty}</p>` : ""}
-                ${simText}
+                ${props.difficulty ? `<p style="font-size:11px;color:#0369a1;margin:3px 0 0;text-transform:capitalize;">${props.difficulty}${simText ? " · " + simText : ""}</p>` : simText ? `<p style="margin:3px 0 0;">${simText}</p>` : ""}
+                ${typeText}
               </a>
+              <div style="margin-top:7px;padding-top:7px;border-top:1px solid #e5e7eb;">
+                <a href="/compare?from=${props.id}" style="font-size:11px;color:#0369a1;text-decoration:none;font-weight:500;">+ Compare this site</a>
+              </div>
             </div>`
           )
           .addTo(mapInstance);

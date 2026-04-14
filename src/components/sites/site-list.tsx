@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,17 @@ const SITE_TYPES = [
   "wall", "reef", "wreck", "cave", "drift", "muck", "pinnacle", "shore", "deep",
 ];
 
-type SortOption = "name" | "recent" | "most-compared";
+type SortOption = "name" | "recent" | "most-compared" | "nearest";
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 interface SiteListProps {
   sites: DiveSite[];
@@ -34,8 +44,25 @@ export function SiteList({ sites, similarityCounts = {}, imageCounts = {} }: Sit
   const [siteType, setSiteType] = useState<string>("");
   const [hasImages, setHasImages] = useState(false);
   const [sort, setSort] = useState<SortOption>("most-compared");
+  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
   const hasFilters = difficulty || accessType || siteType || hasImages;
+
+  const handleSortChange = useCallback((v: string | null) => {
+    const newSort = (v ?? "most-compared") as SortOption;
+    setSort(newSort);
+    if (newSort === "nearest" && !userCoords) {
+      setGeoError(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        () => {
+          setGeoError("Location access denied — can't sort by nearest.");
+          setSort("most-compared");
+        }
+      );
+    }
+  }, [userCoords]);
 
   const filtered = useMemo(() => {
     let result = sites.filter((site) => {
@@ -63,11 +90,16 @@ export function SiteList({ sites, similarityCounts = {}, imageCounts = {} }: Sit
       if (sort === "most-compared") {
         return (similarityCounts[b.id] ?? 0) - (similarityCounts[a.id] ?? 0);
       }
+      if (sort === "nearest" && userCoords) {
+        const da = haversineKm(userCoords.lat, userCoords.lon, a.latitude, a.longitude);
+        const db2 = haversineKm(userCoords.lat, userCoords.lon, b.latitude, b.longitude);
+        return da - db2;
+      }
       return 0;
     });
 
     return result;
-  }, [sites, query, difficulty, accessType, siteType, hasImages, sort, similarityCounts, imageCounts]);
+  }, [sites, query, difficulty, accessType, siteType, hasImages, sort, similarityCounts, imageCounts, userCoords]);
 
   function clearFilters() {
     setDifficulty("");
@@ -141,7 +173,7 @@ export function SiteList({ sites, similarityCounts = {}, imageCounts = {} }: Sit
           <span className="text-sm text-muted-foreground">
             {filtered.length} site{filtered.length !== 1 ? "s" : ""}
           </span>
-          <Select value={sort} onValueChange={(v) => setSort((v ?? "most-compared") as SortOption)}>
+          <Select value={sort} onValueChange={handleSortChange}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -149,10 +181,15 @@ export function SiteList({ sites, similarityCounts = {}, imageCounts = {} }: Sit
               <SelectItem value="most-compared">Most compared</SelectItem>
               <SelectItem value="recent">Recently added</SelectItem>
               <SelectItem value="name">Name A–Z</SelectItem>
+              <SelectItem value="nearest">Nearest to me</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
+
+      {geoError && (
+        <p className="text-sm text-destructive">{geoError}</p>
+      )}
 
       {/* Results */}
       {filtered.length === 0 ? (

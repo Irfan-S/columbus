@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ComparisonImages } from "@/components/comparison/comparison-images";
+import { AdminDeleteComparison } from "@/components/admin/admin-delete-comparison";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -90,6 +91,13 @@ export default async function CompareDetailPage({ params }: PageProps) {
     <div className="flex min-h-screen flex-col">
       <Header profile={profile} />
       <main className="mx-auto w-full max-w-2xl px-4 py-8">
+        {/* Admin moderation */}
+        {profile?.role === "admin" && (
+          <div className="mb-4 flex justify-end">
+            <AdminDeleteComparison similarityId={similarity.id} />
+          </div>
+        )}
+
         {/* Site pair header */}
         <div className="mb-6 text-center">
           <div className="flex items-center justify-center gap-3 text-lg">

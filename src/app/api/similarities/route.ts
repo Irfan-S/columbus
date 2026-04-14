@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { similarities, diveSites } from "@/db/schema";
 import { requireAuth } from "@/lib/auth";
-import { eq } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 
 export async function POST(request: Request) {
   try {
@@ -44,19 +44,36 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!note || note.trim().length === 0) {
-      return NextResponse.json(
-        { error: "A note explaining the similarity is required" },
-        { status: 400 }
-      );
+    // Validate word count if a note was provided
+    if (note && note.trim().length > 0) {
+      const wordCount = note.trim().split(/\s+/).length;
+      if (wordCount > 100) {
+        return NextResponse.json(
+          { error: "Note must be 100 words or fewer" },
+          { status: 400 }
+        );
+      }
     }
 
-    // Validate word count
-    const wordCount = note.trim().split(/\s+/).length;
-    if (wordCount > 100) {
+    // Prevent duplicate comparisons from the same user
+    const [existing] = await db
+      .select({ id: similarities.id })
+      .from(similarities)
+      .where(
+        and(
+          eq(similarities.createdBy, profile.id),
+          or(
+            and(eq(similarities.siteAId, siteAId), eq(similarities.siteBId, siteBId)),
+            and(eq(similarities.siteAId, siteBId), eq(similarities.siteBId, siteAId))
+          )
+        )
+      )
+      .limit(1);
+
+    if (existing) {
       return NextResponse.json(
-        { error: "Note must be 100 words or fewer" },
-        { status: 400 }
+        { error: "You have already compared these two sites" },
+        { status: 409 }
       );
     }
 
@@ -106,7 +123,7 @@ export async function POST(request: Request) {
         landscapeRating: landscapeRating || null,
         currentsRating: currentsRating || null,
         visibilityRating: visibilityRating || null,
-        note: note.trim(),
+        note: note?.trim() || null,
       })
       .returning();
 

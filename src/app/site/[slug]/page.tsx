@@ -12,7 +12,10 @@ import { SiteDetailMap } from "@/components/sites/site-detail-map";
 import { SimilarityCard } from "@/components/sites/similarity-card";
 import { AggregatedScores } from "@/components/sites/aggregated-scores";
 import { SiteImages } from "@/components/sites/site-images";
+import { NearbySites } from "@/components/sites/nearby-sites";
+import { getNearbySites } from "@/lib/geo";
 import type { Metadata } from "next";
+import type { DiveSite } from "@/db/schema";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -142,6 +145,14 @@ export default async function SiteDetailPage({ params }: PageProps) {
     // ignore
   }
 
+  // Get nearby sites (within 2km) — auto-detected by vicinity
+  let nearbySites: { site: DiveSite; distanceM: number }[] = [];
+  try {
+    nearbySites = await getNearbySites(site.id, site.latitude, site.longitude);
+  } catch {
+    // ignore
+  }
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "TouristAttraction",
@@ -226,6 +237,13 @@ export default async function SiteDetailPage({ params }: PageProps) {
               Added by {creator.displayName} ({creator.certAgency}{" "}
               {creator.certLevel})
             </p>
+          )}
+
+          {/* Nearby sites — auto-detected by vicinity */}
+          {nearbySites.length > 0 && (
+            <div className="mb-8">
+              <NearbySites sites={nearbySites} />
+            </div>
           )}
 
           {/* Similarities section */}

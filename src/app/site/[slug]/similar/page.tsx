@@ -7,7 +7,10 @@ import { getProfile } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { SimilarityCard } from "@/components/sites/similarity-card";
+import { NearbySites } from "@/components/sites/nearby-sites";
+import { getNearbySites } from "@/lib/geo";
 import type { Metadata } from "next";
+import type { DiveSite } from "@/db/schema";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -42,6 +45,7 @@ export default async function SiteSimilarPage({ params }: PageProps) {
 
   if (!site) notFound();
 
+  let nearbySites: { site: DiveSite; distanceM: number }[] = [];
   let siteSimilarities: {
     similarity: typeof similarities.$inferSelect;
     otherSite: typeof diveSites.$inferSelect;
@@ -78,6 +82,12 @@ export default async function SiteSimilarPage({ params }: PageProps) {
     // DB not connected
   }
 
+  try {
+    nearbySites = await getNearbySites(site.id, site.latitude, site.longitude);
+  } catch {
+    // ignore
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header profile={profile} />
@@ -96,6 +106,12 @@ export default async function SiteSimilarPage({ params }: PageProps) {
             {site.region}, {site.country}
           </p>
         </div>
+
+        {nearbySites.length > 0 && (
+          <div className="mb-8">
+            <NearbySites sites={nearbySites} />
+          </div>
+        )}
 
         {siteSimilarities.length === 0 ? (
           <div className="rounded-lg border py-12 text-center">

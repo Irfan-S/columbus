@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { db } from "@/db";
-import { diveSites, similarities } from "@/db/schema";
-import { count } from "drizzle-orm";
+import { diveSites, similarities, images } from "@/db/schema";
+import { count, isNotNull } from "drizzle-orm";
 import { getProfile } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { HomeMap } from "@/components/map/home-map";
@@ -11,6 +11,7 @@ export default async function HomePage() {
 
   let sites: (typeof diveSites.$inferSelect)[] = [];
   let similarityCounts: Record<string, number> = {};
+  let heroImages: Record<string, string> = {};
 
   try {
     sites = await db.select().from(diveSites);
@@ -28,6 +29,19 @@ export default async function HomePage() {
     for (const row of [...simCountsA, ...simCountsB]) {
       similarityCounts[row.siteId] = (similarityCounts[row.siteId] ?? 0) + Number(row.n);
     }
+
+    // First image per site for map popup thumbnails
+    const siteImageRows = await db
+      .select({ diveSiteId: images.diveSiteId, url: images.url })
+      .from(images)
+      .where(isNotNull(images.diveSiteId))
+      .orderBy(images.createdAt);
+
+    for (const row of siteImageRows) {
+      if (row.diveSiteId && !heroImages[row.diveSiteId]) {
+        heroImages[row.diveSiteId] = row.url;
+      }
+    }
   } catch {
     // DB not connected yet — show empty map
   }
@@ -36,7 +50,7 @@ export default async function HomePage() {
     <div className="flex h-screen flex-col">
       <Header profile={profile} />
       <main className="relative flex-1">
-        <HomeMap sites={sites} similarityCounts={similarityCounts} />
+        <HomeMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} />
 
         {/* Logo overlay — visible when no sites / first visit */}
         {sites.length === 0 && (

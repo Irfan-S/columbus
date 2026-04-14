@@ -37,9 +37,9 @@ Uses `@base-ui/react` primitives. Key differences from v3:
 
 ## Data Model (4 entities)
 
-- **profiles**: id, email, password_hash, display_name, cert_agency, cert_number, cert_level, role (diver/pro/admin)
-- **dive_sites**: id, name, slug, description, lat/long, country, region, difficulty, access_type, site_types[], created_by (pro only)
-- **similarities**: id, site_a_id, site_b_id, created_by, pelagic/macro/landscape/currents/visibility ratings (1-5, all optional, min 1), note (100 words max)
+- **profiles**: id, email, password_hash, display_name, cert_agency, cert_number, cert_level, role (diver/pro/admin), pro_requested_at?
+- **dive_sites**: id, name, slug, description, lat/long, country, region, difficulty, access_type, max_depth_m?, typical_visibility_m?, site_types[], created_by (pro only)
+- **similarities**: id, site_a_id, site_b_id, created_by, pelagic/macro/landscape/currents/visibility ratings (1-5, all optional, min 1 required), note? (optional, 100 words max if provided). Duplicate comparisons (same user, same pair) are rejected.
 - **images**: id, url, thumbnail_url, uploaded_by, dive_site_id?, similarity_id?, caption
 
 Schema: `src/db/schema.ts`
@@ -75,41 +75,65 @@ Schema: `src/db/schema.ts`
 ```
 src/
   app/
-    page.tsx                — Map explorer homepage
+    page.tsx                — Map explorer homepage (hero images + sim counts in popups)
     search/page.tsx         — Search/browse dive sites
-    site/[slug]/page.tsx    — Dive site detail with similarities
-    compare/page.tsx        — Comparison flow (site picker + rating)
-    compare/[id]/page.tsx   — View a specific comparison
+    site/[slug]/page.tsx    — Site detail (nearby, similarities, images, JSON-LD)
+    site/[slug]/similar/page.tsx — All comparisons for a site
+    compare/page.tsx        — Comparison flow
+    compare/[id]/page.tsx   — View a specific comparison (admin delete button)
+    profile/page.tsx        — User profile + pro request
+    admin/page.tsx          — Admin panel (pro requests, role management)
     auth/login/page.tsx     — Login
     auth/register/page.tsx  — 2-step registration (account + cert)
-    api/auth/[...nextauth]/route.ts — NextAuth handler
-    api/auth/register/route.ts — Registration endpoint
-    pro/dashboard/page.tsx  — Pro's site management
+    pro/dashboard/page.tsx  — Pro's site management (edit buttons)
     pro/add-site/page.tsx   — Pin-on-map site creation
-    api/sites/route.ts      — Sites CRUD API
-    api/sites/search/route.ts — Site search (ilike on name/country/region)
-    api/similarities/route.ts — Create similarity comparison
+    pro/edit-site/[id]/page.tsx — Edit a dive site
+    api/auth/[...nextauth]/route.ts
+    api/auth/register/route.ts
+    api/sites/route.ts      — GET all, POST create (pro)
+    api/sites/[id]/route.ts — GET single, PATCH update
+    api/sites/search/route.ts — Type-ahead search
+    api/similarities/route.ts — POST create (deduped per user+pair)
+    api/images/route.ts     — POST upload
+    api/pro/request/route.ts — POST request pro status
+    api/admin/approve-pro/route.ts
+    api/admin/deny-pro/route.ts
+    api/admin/set-role/route.ts
+    api/admin/delete-similarity/route.ts
   components/
-    layout/header.tsx       — Sticky nav with auth state
-    map/dive-map.tsx        — Mapbox globe with clusters
+    layout/header.tsx       — Sticky nav (Admin Panel link for admins)
+    layout/bottom-nav.tsx   — Mobile bottom nav (Explore/Search/Compare/Profile)
+    layout/sw-register.tsx  — Service worker registration
+    map/dive-map.tsx        — Mapbox globe (outdoors-v12, clusters, hero img popup)
     map/home-map.tsx        — Client wrapper for homepage
-    map/pin-picker-map.tsx  — Click-to-place pin for site creation
-    sites/site-list.tsx     — Filtered site list
+    map/pin-picker-map.tsx  — Click-to-place pin for site creation/editing
+    sites/site-list.tsx     — Filtered+sorted list (nearest/recent/A-Z/most-compared)
     sites/site-detail-map.tsx — Mini map on detail page
     sites/similarity-card.tsx — Comparison display card
     sites/aggregated-scores.tsx — Averaged ratings across all comparisons
+    sites/nearby-sites.tsx  — Auto-detected sites within 2km
+    sites/site-images.tsx   — Image gallery + upload for sites
+    sites/edit-site-form.tsx — Edit dive site form
     comparison/compare-flow.tsx — 2-step comparison wizard
     comparison/star-rating.tsx — 1-5 dot rating input
     comparison/site-search.tsx — Type-ahead site search dropdown
+    comparison/comparison-images.tsx — Images on comparison detail page
+    images/image-gallery.tsx — Horizontal scroll + lightbox
+    images/image-upload.tsx — File picker + caption
+    admin/admin-pro-requests.tsx — Approve/deny pro requests
+    admin/admin-user-row.tsx — Inline role change per user
+    admin/admin-delete-comparison.tsx — Admin delete with confirmation
+    profile/pro-request-button.tsx — Request pro status
   db/
     schema.ts               — Drizzle schema (all 4 tables)
     index.ts                — DB client
   lib/
     auth.ts                 — NextAuth config + getProfile, requireAuth, requirePro
     auth-types.ts           — NextAuth type augmentations
+    geo.ts                  — Haversine vicinity query (getNearbySites, 2km radius)
     slugify.ts              — URL slug generation
     utils.ts                — shadcn/ui cn() utility
-  middleware.ts             — Route middleware
+  middleware.ts             — Protects /compare, /profile, /pro, /admin
 ```
 
 ## Page Routes

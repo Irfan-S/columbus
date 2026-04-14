@@ -6,8 +6,9 @@ import type { DiveSite } from "@/db/schema";
 interface HomeMapProps {
   sites: DiveSite[];
   similarityCounts?: Record<string, number>;
+  heroImages?: Record<string, string>;
 }
 
-export function HomeMap({ sites, similarityCounts = {} }: HomeMapProps) {
-  return <DiveMap sites={sites} similarityCounts={similarityCounts} />;
+export function HomeMap({ sites, similarityCounts = {}, heroImages = {} }: HomeMapProps) {
+  return <DiveMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} />;
 }

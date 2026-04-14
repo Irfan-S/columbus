@@ -118,7 +118,7 @@ export const similarities = pgTable(
     landscapeRating: integer("landscape_rating"),
     currentsRating: integer("currents_rating"),
     visibilityRating: integer("visibility_rating"),
-    note: text("note").notNull(),
+    note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -64,10 +64,6 @@ export function CompareFlow({
       setError("Rate at least one axis");
       return;
     }
-    if (!note.trim()) {
-      setError("Add a note explaining why these sites are similar");
-      return;
-    }
     if (wordCount > 100) {
       setError("Note must be 100 words or fewer");
       return;
@@ -273,7 +269,8 @@ export function CompareFlow({
             {/* Note */}
             <div className="space-y-2">
               <Label htmlFor="note">
-                Why are these sites similar?
+                Why are these sites similar?{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Textarea
                 id="note"
@@ -305,9 +302,7 @@ export function CompareFlow({
               <Button
                 className="flex-1"
                 onClick={handleSubmit}
-                disabled={
-                  step === "submitting" || !hasRating || !note.trim()
-                }
+                disabled={step === "submitting" || !hasRating}
               >
                 {step === "submitting"
                   ? "Submitting..."
