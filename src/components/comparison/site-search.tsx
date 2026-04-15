@@ -22,6 +22,7 @@ export function SiteSearch({
   const [loading, setLoading] = useState(false);
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const updateRect = useCallback(() => {
     if (containerRef.current) {
@@ -58,7 +59,10 @@ export function SiteSearch({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current && !containerRef.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -88,7 +92,7 @@ export function SiteSearch({
   const dropdown =
     isOpen && dropdownStyle ? (
       results.length > 0 ? (
-        <div style={dropdownStyle} className="rounded-md border bg-popover shadow-lg">
+        <div ref={dropdownRef} style={dropdownStyle} className="rounded-md border bg-popover shadow-lg">
           <ul className="max-h-60 overflow-auto py-1">
             {results.map((site) => (
               <li key={site.id}>
@@ -113,6 +117,7 @@ export function SiteSearch({
         </div>
       ) : query.length >= 2 && !loading ? (
         <div
+          ref={dropdownRef}
           style={dropdownStyle}
           className="rounded-md border bg-popover px-3 py-4 text-center text-sm text-muted-foreground shadow-lg"
         >

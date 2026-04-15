@@ -21,59 +21,102 @@ interface DiveMapProps {
   className?: string;
 }
 
-function buildRatingHtml(
+// Build rating section as a real DOM element (avoids Mapbox v3 HTML sanitizer stripping onclick)
+function buildRatingElement(
   siteId: string,
   rating: { yes: number; no: number } | undefined,
   myVote: boolean | null,
   loggedIn: boolean,
-): string {
+  onVote: (value: boolean) => void,
+): HTMLElement {
   const yes = rating?.yes ?? 0;
   const no = rating?.no ?? 0;
   const total = yes + no;
   const pct = total > 0 ? Math.round((yes / total) * 100) : 0;
 
-  const bar =
-    total > 0
-      ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-           <span style="font-size:11px;color:#64748b;">Would dive again</span>
-           <span style="font-size:12px;font-weight:600;color:#0369a1;">${pct}%</span>
-         </div>
-         <div style="height:4px;background:#e5e7eb;border-radius:9999px;overflow:hidden;">
-           <div style="height:100%;width:${pct}%;background:#0369a1;border-radius:9999px;"></div>
-         </div>
-         <p style="font-size:10px;color:#94a3b8;margin:3px 0 0;">${total} rating${total !== 1 ? "s" : ""}</p>`
-      : "";
+  const wrap = document.createElement("div");
+  wrap.id = `popup-rating-${siteId}`;
+  wrap.style.cssText = "margin-top:7px;padding-top:7px;border-top:1px solid #e5e7eb;";
 
-  const heading =
-    total === 0
-      ? `<p style="font-size:11px;color:#64748b;margin:0 0 5px;font-weight:500;">Would you dive here again?</p>`
-      : bar;
+  // Progress bar (shown when there are votes)
+  if (total > 0) {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;";
+    const lbl = document.createElement("span");
+    lbl.style.cssText = "font-size:11px;color:#64748b;";
+    lbl.textContent = "Would dive again";
+    const pctEl = document.createElement("span");
+    pctEl.style.cssText = "font-size:12px;font-weight:600;color:#0369a1;";
+    pctEl.textContent = `${pct}%`;
+    row.appendChild(lbl);
+    row.appendChild(pctEl);
+    wrap.appendChild(row);
+
+    const track = document.createElement("div");
+    track.style.cssText = "height:4px;background:#e5e7eb;border-radius:9999px;overflow:hidden;";
+    const fill = document.createElement("div");
+    fill.style.cssText = `height:100%;width:${pct}%;background:#0369a1;border-radius:9999px;`;
+    track.appendChild(fill);
+    wrap.appendChild(track);
+
+    const count = document.createElement("p");
+    count.style.cssText = "font-size:10px;color:#94a3b8;margin:3px 0 0;";
+    count.textContent = `${total} rating${total !== 1 ? "s" : ""}`;
+    wrap.appendChild(count);
+  }
 
   if (!loggedIn) {
-    return `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #e5e7eb;">
-      ${total > 0 ? bar : `<p style="font-size:11px;color:#94a3b8;margin:0;">No ratings yet</p>`}
-    </div>`;
+    if (total === 0) {
+      const p = document.createElement("p");
+      p.style.cssText = "font-size:11px;color:#94a3b8;margin:0;";
+      p.textContent = "No ratings yet";
+      wrap.appendChild(p);
+    }
+    return wrap;
   }
 
+  // Logged in — show vote UI
   if (myVote !== null) {
-    const changeValue = !myVote;
-    const changeLabel = myVote ? "No" : "Yes";
-    return `<div id="popup-rating-${siteId}" style="margin-top:7px;padding-top:7px;border-top:1px solid #e5e7eb;">
-      ${bar}
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:${total > 0 ? "5px" : "0"};">
-        <span style="font-size:11px;color:#64748b;">Your vote: <strong style="color:${myVote ? "#0369a1" : "#dc2626"}">${myVote ? "Yes" : "No"}</strong></span>
-        <button onclick="window.__columbusVote('${siteId}',${changeValue})" style="font-size:10px;color:#64748b;border:1px solid #e5e7eb;background:#f8fafc;border-radius:4px;padding:2px 7px;cursor:pointer;">Switch to ${changeLabel}</button>
-      </div>
-    </div>`;
+    // Already voted
+    const row = document.createElement("div");
+    row.style.cssText = `display:flex;align-items:center;justify-content:space-between;margin-top:${total > 0 ? "5px" : "0"};`;
+    const lbl = document.createElement("span");
+    lbl.style.cssText = "font-size:11px;color:#64748b;";
+    lbl.innerHTML = `Your vote: <strong style="color:${myVote ? "#0369a1" : "#dc2626"}">${myVote ? "Yes" : "No"}</strong>`;
+    const btn = document.createElement("button");
+    btn.style.cssText = "font-size:10px;color:#64748b;border:1px solid #e5e7eb;background:#f8fafc;border-radius:4px;padding:2px 7px;cursor:pointer;";
+    btn.textContent = `Switch to ${myVote ? "No" : "Yes"}`;
+    btn.addEventListener("click", (e) => { e.stopPropagation(); onVote(!myVote); });
+    row.appendChild(lbl);
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  } else {
+    // Not voted yet
+    if (total === 0) {
+      const heading = document.createElement("p");
+      heading.style.cssText = "font-size:11px;color:#64748b;margin:0 0 5px;font-weight:500;";
+      heading.textContent = "Would you dive here again?";
+      wrap.appendChild(heading);
+    }
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = `display:flex;gap:6px;margin-top:${total > 0 ? "6px" : "0"};`;
+
+    const yesBtn = document.createElement("button");
+    yesBtn.style.cssText = "flex:1;font-size:11px;color:#0369a1;border:1px solid #bae6fd;background:#f0f9ff;border-radius:4px;padding:4px 0;cursor:pointer;font-weight:500;";
+    yesBtn.textContent = "👍 Yes";
+    yesBtn.addEventListener("click", (e) => { e.stopPropagation(); onVote(true); });
+
+    const noBtn = document.createElement("button");
+    noBtn.style.cssText = "flex:1;font-size:11px;color:#dc2626;border:1px solid #fecaca;background:#fff5f5;border-radius:4px;padding:4px 0;cursor:pointer;font-weight:500;";
+    noBtn.textContent = "👎 No";
+    noBtn.addEventListener("click", (e) => { e.stopPropagation(); onVote(false); });
+
+    btnRow.appendChild(yesBtn);
+    btnRow.appendChild(noBtn);
+    wrap.appendChild(btnRow);
   }
 
-  return `<div id="popup-rating-${siteId}" style="margin-top:7px;padding-top:7px;border-top:1px solid #e5e7eb;">
-    ${heading}
-    <div style="display:flex;gap:6px;margin-top:${total > 0 ? "6px" : "0"};">
-      <button onclick="window.__columbusVote('${siteId}',true)" style="flex:1;font-size:11px;color:#0369a1;border:1px solid #bae6fd;background:#f0f9ff;border-radius:4px;padding:4px 0;cursor:pointer;font-weight:500;">👍 Yes</button>
-      <button onclick="window.__columbusVote('${siteId}',false)" style="flex:1;font-size:11px;color:#dc2626;border:1px solid #fecaca;background:#fff5f5;border-radius:4px;padding:4px 0;cursor:pointer;font-weight:500;">👎 No</button>
-    </div>
-  </div>`;
+  return wrap;
 }
 
 export function DiveMap({
@@ -150,11 +193,7 @@ export function DiveMap({
       });
     });
 
-    // Global vote handler for popup buttons
-    (window as Window & { __columbusVote?: (siteId: string, value: boolean) => void }).__columbusVote = async (
-      siteId: string,
-      value: boolean,
-    ) => {
+    async function voteOnSite(siteId: string, value: boolean) {
       const el = document.getElementById(`popup-rating-${siteId}`);
       if (el) el.style.opacity = "0.5";
       try {
@@ -165,18 +204,18 @@ export function DiveMap({
         });
         if (res.ok) {
           const data = (await res.json()) as { yes: number; no: number };
-          // Update live refs so reopening popup shows fresh data
           ratingDataRef.current = { ...ratingDataRef.current, [siteId]: data };
           userVotesRef.current = { ...userVotesRef.current, [siteId]: value };
-          const el2 = document.getElementById(`popup-rating-${siteId}`);
-          if (el2) {
-            el2.outerHTML = buildRatingHtml(siteId, data, value, true);
+          const existing = document.getElementById(`popup-rating-${siteId}`);
+          if (existing) {
+            const replacement = buildRatingElement(siteId, data, value, true, (v) => voteOnSite(siteId, v));
+            existing.replaceWith(replacement);
           }
         }
       } catch {
         if (el) el.style.opacity = "1";
       }
-    };
+    }
 
     mapInstance.on("load", () => {
       const geojson: GeoJSON.FeatureCollection = {
@@ -292,34 +331,75 @@ export function DiveMap({
         const rating = ratingDataRef.current[props.id];
         const myVote = props.id in userVotesRef.current ? userVotesRef.current[props.id] : null;
 
-        const simText = simCount > 0
-          ? `<span style="font-size:11px;color:#64748b;">${simCount} comparison${simCount !== 1 ? "s" : ""}</span>`
-          : "";
-
         const siteTypes: string[] = props.siteTypes ? JSON.parse(props.siteTypes) : [];
-        const typeText = siteTypes.length > 0
-          ? `<p style="font-size:11px;color:#64748b;margin:3px 0 0;text-transform:capitalize;">${siteTypes.slice(0, 3).join(" · ")}</p>`
-          : "";
 
-        const ratingHtml = buildRatingHtml(props.id, rating, myVote, loggedInRef.current);
+        // Build popup as real DOM to avoid Mapbox v3 HTML sanitizer stripping onclick
+        const container = document.createElement("div");
+        container.style.cssText = "font-family:system-ui,sans-serif;font-size:13px;";
 
-        new mapboxgl.Popup({ closeButton: false, maxWidth: "220px" })
+        if (heroImg) {
+          const img = document.createElement("img");
+          img.src = heroImg;
+          img.style.cssText = "width:100%;height:72px;object-fit:cover;border-radius:4px;margin-bottom:6px;display:block;";
+          container.appendChild(img);
+        }
+
+        const link = document.createElement("a");
+        link.href = `/site/${props.slug}`;
+        link.style.cssText = "text-decoration:none;color:inherit;display:block;";
+
+        const name = document.createElement("p");
+        name.style.cssText = "font-weight:600;font-size:14px;margin:0 0 2px;";
+        name.textContent = props.name;
+        link.appendChild(name);
+
+        const loc = document.createElement("p");
+        loc.style.cssText = "font-size:12px;color:#64748b;margin:0;";
+        loc.textContent = `${props.region}, ${props.country}`;
+        link.appendChild(loc);
+
+        if (props.difficulty || simCount > 0) {
+          const meta = document.createElement("p");
+          meta.style.cssText = "font-size:11px;color:#0369a1;margin:3px 0 0;text-transform:capitalize;";
+          const parts: string[] = [];
+          if (props.difficulty) parts.push(props.difficulty);
+          if (simCount > 0) parts.push(`${simCount} comparison${simCount !== 1 ? "s" : ""}`);
+          meta.textContent = parts.join(" · ");
+          link.appendChild(meta);
+        }
+
+        if (siteTypes.length > 0) {
+          const types = document.createElement("p");
+          types.style.cssText = "font-size:11px;color:#64748b;margin:3px 0 0;text-transform:capitalize;";
+          types.textContent = siteTypes.slice(0, 3).join(" · ");
+          link.appendChild(types);
+        }
+
+        container.appendChild(link);
+
+        // Rating section — always shown
+        const ratingEl = buildRatingElement(
+          props.id,
+          rating,
+          myVote,
+          loggedInRef.current,
+          (value) => voteOnSite(props.id, value),
+        );
+        container.appendChild(ratingEl);
+
+        // Compare link
+        const compareDiv = document.createElement("div");
+        compareDiv.style.cssText = "margin-top:7px;padding-top:7px;border-top:1px solid #e5e7eb;";
+        const compareLink = document.createElement("a");
+        compareLink.href = `/compare?from=${props.id}`;
+        compareLink.style.cssText = "font-size:11px;color:#0369a1;text-decoration:none;font-weight:500;";
+        compareLink.textContent = "+ Compare this site";
+        compareDiv.appendChild(compareLink);
+        container.appendChild(compareDiv);
+
+        new mapboxgl.Popup({ closeButton: false, maxWidth: "240px" })
           .setLngLat(e.lngLat)
-          .setHTML(
-            `<div style="font-family:system-ui,sans-serif;font-size:13px;">
-              ${heroImg ? `<img src="${heroImg}" style="width:100%;height:72px;object-fit:cover;border-radius:4px;margin-bottom:6px;display:block;" />` : ""}
-              <a href="/site/${props.slug}" style="text-decoration:none;color:inherit;display:block;">
-                <p style="font-weight:600;font-size:14px;margin:0 0 2px;">${props.name}</p>
-                <p style="font-size:12px;color:#64748b;margin:0;">${props.region}, ${props.country}</p>
-                ${props.difficulty ? `<p style="font-size:11px;color:#0369a1;margin:3px 0 0;text-transform:capitalize;">${props.difficulty}${simText ? " · " + simText : ""}</p>` : simText ? `<p style="margin:3px 0 0;">${simText}</p>` : ""}
-                ${typeText}
-              </a>
-              ${ratingHtml}
-              <div style="margin-top:7px;padding-top:7px;border-top:1px solid #e5e7eb;">
-                <a href="/compare?from=${props.id}" style="font-size:11px;color:#0369a1;text-decoration:none;font-weight:500;">+ Compare this site</a>
-              </div>
-            </div>`
-          )
+          .setDOMContent(container)
           .addTo(mapInstance);
       });
 
