@@ -86,6 +86,33 @@ export default async function HomePage() {
           userComparisons={userComparisons}
         />
 
+        {/* Pin colour legend — only meaningful when logged in */}
+        {!!profile && (
+          <div className="absolute bottom-20 sm:bottom-6 left-4 pointer-events-none">
+            <div className="rounded-xl bg-background/90 px-3 py-2.5 shadow-lg backdrop-blur space-y-1.5">
+              {(
+                [
+                  { bg: "#0369a1", label: "Not yet rated or compared" },
+                  { bg: "#f59e0b", label: "Rated" },
+                  { bg: "#0d9488", label: "Compared" },
+                ] as const
+              ).map(({ bg, label }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <span className="h-3 w-3 shrink-0 rounded-full ring-[1.5px] ring-white" style={{ background: bg }} />
+                  <span className="text-xs text-muted-foreground">{label}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full ring-[1.5px] ring-white"
+                  style={{ background: "linear-gradient(to right, #f59e0b 50%, #0d9488 50%)" }}
+                />
+                <span className="text-xs text-muted-foreground">Rated &amp; compared</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Site count pill */}
         <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="rounded-full bg-background/90 px-4 py-2 shadow-lg backdrop-blur pointer-events-auto">
