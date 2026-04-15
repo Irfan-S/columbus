@@ -275,6 +275,9 @@ export default function RegisterPage() {
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" required minLength={8} />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Your display name and email cannot be changed after signup.
+              </p>
               <Button type="submit" className="w-full">Continue</Button>
             </form>
           ) : (

@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { diveSites, similarities, images, siteRatings } from "@/db/schema";
-import { count, isNotNull } from "drizzle-orm";
+import { count, isNotNull, eq } from "drizzle-orm";
 import { getProfile } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { HomeMap } from "@/components/map/home-map";
@@ -9,10 +9,11 @@ export default async function HomePage() {
   const profile = await getProfile();
 
   let sites: (typeof diveSites.$inferSelect)[] = [];
-  let similarityCounts: Record<string, number> = {};
-  let heroImages: Record<string, string> = {};
-  let ratingData: Record<string, { yes: number; no: number }> = {};
-  let userVotes: Record<string, boolean> = {};
+  const similarityCounts: Record<string, number> = {};
+  const heroImages: Record<string, string> = {};
+  const ratingData: Record<string, { yes: number; no: number }> = {};
+  const userVotes: Record<string, boolean> = {};
+  const userComparisons: Record<string, boolean> = {};
 
   try {
     sites = await db.select().from(diveSites);
@@ -56,6 +57,17 @@ export default async function HomePage() {
         userVotes[r.siteId] = r.wouldDiveAgain;
       }
     }
+
+    if (profile) {
+      const userSims = await db
+        .select({ siteAId: similarities.siteAId, siteBId: similarities.siteBId })
+        .from(similarities)
+        .where(eq(similarities.createdBy, profile.id));
+      for (const row of userSims) {
+        userComparisons[row.siteAId] = true;
+        userComparisons[row.siteBId] = true;
+      }
+    }
   } catch {
     // DB not connected yet — show empty map
   }
@@ -71,6 +83,7 @@ export default async function HomePage() {
           ratingData={ratingData}
           loggedIn={!!profile}
           userVotes={userVotes}
+          userComparisons={userComparisons}
         />
 
         {/* Site count pill */}

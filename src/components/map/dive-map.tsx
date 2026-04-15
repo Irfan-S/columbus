@@ -14,11 +14,75 @@ interface DiveMapProps {
   ratingData?: Record<string, { yes: number; no: number }>;
   loggedIn?: boolean;
   userVotes?: Record<string, boolean>;
+  userComparisons?: Record<string, boolean>;
   onSiteClick?: (site: DiveSite) => void;
   interactive?: boolean;
   center?: [number, number];
   zoom?: number;
   className?: string;
+}
+
+type PinType = "default" | "rated" | "compared" | "both";
+
+// Draw a canvas-based pin image for map.addImage()
+// - default:  solid blue   (#0369a1)  — never interacted
+// - rated:    solid amber  (#f59e0b)  — user cast a thumbs up/down
+// - compared: solid teal   (#0d9488)  — user submitted a comparison
+// - both:     split circle — left amber / right teal + white divider
+function createPinImage(type: PinType): ImageData {
+  const dp = 20;     // logical size in dp
+  const dpr = 2;     // pixel ratio
+  const px = dp * dpr;
+  const canvas = document.createElement("canvas");
+  canvas.width = px;
+  canvas.height = px;
+  const ctx = canvas.getContext("2d")!;
+  ctx.scale(dpr, dpr);
+
+  const cx = dp / 2;   // 10
+  const cy = dp / 2;   // 10
+  const r = 8;
+
+  if (type === "both") {
+    // Left half — amber (rated)
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, true); // counterclockwise → left arc
+    ctx.closePath();
+    ctx.fillStyle = "#f59e0b";
+    ctx.fill();
+
+    // Right half — teal (compared)
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, false); // clockwise → right arc
+    ctx.closePath();
+    ctx.fillStyle = "#0d9488";
+    ctx.fill();
+
+    // White centre divider
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx, cy + r);
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  } else {
+    const fill = type === "rated" ? "#f59e0b" : type === "compared" ? "#0d9488" : "#0369a1";
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+
+  // Outer white stroke on all types
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  return ctx.getImageData(0, 0, px, px);
 }
 
 // Build rating section as a real DOM element (avoids Mapbox v3 HTML sanitizer stripping onclick)
@@ -126,6 +190,7 @@ export function DiveMap({
   ratingData = {},
   loggedIn = false,
   userVotes = {},
+  userComparisons = {},
   onSiteClick,
   interactive = true,
   center = [20, 15],
@@ -144,6 +209,8 @@ export function DiveMap({
   ratingDataRef.current = ratingData;
   const userVotesRef = useRef(userVotes);
   userVotesRef.current = userVotes;
+  const userComparisonsRef = useRef(userComparisons);
+  userComparisonsRef.current = userComparisons;
   const loggedInRef = useRef(loggedIn);
   loggedInRef.current = loggedIn;
 
@@ -211,6 +278,28 @@ export function DiveMap({
             const replacement = buildRatingElement(siteId, data, value, true, (v) => voteOnSite(siteId, v));
             existing.replaceWith(replacement);
           }
+          // Refresh pin colours to reflect the new rating
+          const src = mapInstance.getSource("sites") as mapboxgl.GeoJSONSource;
+          if (src) {
+            src.setData({
+              type: "FeatureCollection",
+              features: sitesRef.current.map((s) => ({
+                type: "Feature",
+                geometry: { type: "Point", coordinates: [s.longitude, s.latitude] },
+                properties: {
+                  id: s.id,
+                  name: s.name,
+                  slug: s.slug,
+                  country: s.country,
+                  region: s.region,
+                  difficulty: s.difficulty,
+                  siteTypes: JSON.stringify(s.siteTypes),
+                  hasRated: s.id in userVotesRef.current,
+                  hasCompared: !!userComparisonsRef.current[s.id],
+                },
+              })),
+            });
+          }
         }
       } catch {
         if (el) el.style.opacity = "1";
@@ -218,6 +307,11 @@ export function DiveMap({
     }
 
     mapInstance.on("load", () => {
+      // Register pin images for the 4 interaction states
+      (["default", "rated", "compared", "both"] as const).forEach((type) => {
+        mapInstance.addImage(`pin-${type}`, createPinImage(type), { pixelRatio: 2 });
+      });
+
       const geojson: GeoJSON.FeatureCollection = {
         type: "FeatureCollection",
         features: sitesRef.current.map((site) => ({
@@ -234,6 +328,8 @@ export function DiveMap({
             region: site.region,
             difficulty: site.difficulty,
             siteTypes: JSON.stringify(site.siteTypes),
+            hasRated: site.id in userVotesRef.current,
+            hasCompared: !!userComparisonsRef.current[site.id],
           },
         })),
       };
@@ -292,17 +388,28 @@ export function DiveMap({
         },
       });
 
-      // Individual site markers
+      // Individual site markers — symbol layer with data-driven pin images
       mapInstance.addLayer({
         id: "unclustered-point",
-        type: "circle",
+        type: "symbol",
         source: "sites",
         filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": "#0369a1", // sky-700
-          "circle-radius": 8,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#fff",
+        layout: {
+          "icon-image": [
+            "case",
+            // Both rated AND compared → split circle
+            ["all", ["coalesce", ["get", "hasRated"], false], ["coalesce", ["get", "hasCompared"], false]],
+            "pin-both",
+            // Rated only → amber
+            ["coalesce", ["get", "hasRated"], false],
+            "pin-rated",
+            // Compared only → teal
+            ["coalesce", ["get", "hasCompared"], false],
+            "pin-compared",
+            // Never interacted → blue
+            "pin-default",
+          ],
+          "icon-allow-overlap": true,
         },
       });
 
@@ -453,6 +560,8 @@ export function DiveMap({
           region: site.region,
           difficulty: site.difficulty,
           siteTypes: JSON.stringify(site.siteTypes),
+          hasRated: site.id in userVotesRef.current,
+          hasCompared: !!userComparisonsRef.current[site.id],
         },
       })),
     });

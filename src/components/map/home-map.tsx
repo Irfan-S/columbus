@@ -10,8 +10,9 @@ interface HomeMapProps {
   ratingData?: Record<string, { yes: number; no: number }>;
   loggedIn?: boolean;
   userVotes?: Record<string, boolean>;
+  userComparisons?: Record<string, boolean>;
 }
 
-export function HomeMap({ sites, similarityCounts = {}, heroImages = {}, ratingData = {}, loggedIn = false, userVotes = {} }: HomeMapProps) {
-  return <DiveMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} ratingData={ratingData} loggedIn={loggedIn} userVotes={userVotes} />;
+export function HomeMap({ sites, similarityCounts = {}, heroImages = {}, ratingData = {}, loggedIn = false, userVotes = {}, userComparisons = {} }: HomeMapProps) {
+  return <DiveMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} ratingData={ratingData} loggedIn={loggedIn} userVotes={userVotes} userComparisons={userComparisons} />;
 }
