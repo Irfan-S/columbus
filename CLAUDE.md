@@ -47,6 +47,19 @@ Uses `@base-ui/react` primitives. Key differences from v3:
 
 Schema: `src/db/schema.ts`
 
+### Attribution
+
+`dive_sites.dataSource` drives all attribution rendering. No schema migration is needed to add a new source — just use the correct value:
+
+| `dataSource` | License | Credit shown |
+|---|---|---|
+| `'osm'` | ODbL 1.0 | © OpenStreetMap contributors (ODbL 1.0) |
+| `'divevibe'` | ODbL 1.0 (OSM-derived) | © OpenStreetMap contributors (ODbL 1.0) |
+| `'diveboard'` | CC BY-NC-ND 3.0 | Diveboard (CC BY-NC-ND 3.0) |
+| `null` | Columbus platform | © Columbus contributors |
+
+Attribution appears in three places: the global footer (`src/app/layout.tsx`), per-site on the detail page (`src/app/site/[slug]/page.tsx`), and in the Mapbox `customAttribution` control (`src/components/map/dive-map.tsx`).
+
 ## User Roles
 
 - **Diver**: browse, search, compare, upload images

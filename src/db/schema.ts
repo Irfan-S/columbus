@@ -83,7 +83,7 @@ export const diveSites = pgTable(
     maxDepthM: real("max_depth_m"),
     typicalVisibilityM: real("typical_visibility_m"),
     siteTypes: text("site_types").array(), // wall, reef, wreck, cave, drift, muck, pinnacle, shore, deep
-    dataSource: text("data_source"), // 'osm' | 'divevibe' | null (null = user-created)
+    dataSource: text("data_source"), // 'osm' (ODbL 1.0) | 'divevibe' (OSM-derived, ODbL 1.0) | 'diveboard' (CC BY-NC-ND 3.0) | null (user-created, © Columbus contributors)
     externalId: text("external_id"), // source record ID — prevents re-import
     createdBy: uuid("created_by")
       .notNull()

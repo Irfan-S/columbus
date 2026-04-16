@@ -84,6 +84,7 @@ export default async function HomePage() {
           loggedIn={!!profile}
           userVotes={userVotes}
           userComparisons={userComparisons}
+          totalSites={sites.length}
         />
 
         {/* Pin colour legend — only meaningful when logged in */}
@@ -113,16 +114,6 @@ export default async function HomePage() {
           </div>
         )}
 
-        {/* Site count pill */}
-        <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className="rounded-full bg-background/90 px-4 py-2 shadow-lg backdrop-blur pointer-events-auto">
-            <p className="text-sm text-muted-foreground">
-              {sites.length > 0
-                ? `${sites.length} dive site${sites.length === 1 ? "" : "s"} worldwide`
-                : "Explore dive sites worldwide"}
-            </p>
-          </div>
-        </div>
       </main>
     </div>
   );

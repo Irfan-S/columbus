@@ -26,16 +26,28 @@ import {
 // ---------------------------------------------------------------------------
 
 const ADMIN_EMAIL = "crysis1300@gmail.com";
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+
+// Multiple endpoints tried in order on failure
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.openstreetmap.ru/api/interpreter",
+];
+
+// sport=scuba_diving is the precise tag for dive sites.
+// natural=reef and seamark:type=wreck without sport=scuba_diving return
+// millions of unrelated features and cause gateway timeouts.
+// out center; returns the centroid for ways (smaller payload than out body;).
 const OVERPASS_QUERY = `
-[out:json][timeout:90];
+[out:json][timeout:180];
 (
   node["sport"="scuba_diving"];
   way["sport"="scuba_diving"];
-  node["seamark:type"="wreck"];
-  node["natural"="reef"];
+  relation["sport"="scuba_diving"];
+  node["seamark:type"="wreck"]["sport"="scuba_diving"];
+  way["seamark:type"="wreck"]["sport"="scuba_diving"];
 );
-out body;
+out center;
 `;
 
 // ---------------------------------------------------------------------------
@@ -114,16 +126,43 @@ async function main() {
   const externalIdSet = buildExternalIdSet(existing);
   console.log(`✓ Loaded ${existing.length} existing sites`);
 
-  // 3. Fetch Overpass
+  // 3. Fetch Overpass (tries multiple endpoints, 3 attempts each)
   console.log("\n⬇  Fetching from Overpass API…");
-  const res = await fetch(OVERPASS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `data=${encodeURIComponent(OVERPASS_QUERY)}`,
-  });
-  if (!res.ok) throw new Error(`Overpass request failed: ${res.status} ${res.statusText}`);
-  const data = (await res.json()) as OverpassResponse;
-  console.log(`✓ Received ${data.elements.length} OSM elements`);
+  let data: OverpassResponse | null = null;
+  let lastError = "";
+
+  outer: for (const endpoint of OVERPASS_ENDPOINTS) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log(`   Trying ${endpoint} (attempt ${attempt}/3)…`);
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 200_000); // 200 s
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `data=${encodeURIComponent(OVERPASS_QUERY)}`,
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!res.ok) {
+          lastError = `HTTP ${res.status} ${res.statusText}`;
+          console.log(`   ✗ ${lastError}`);
+          if (res.status === 429 || res.status === 504) await sleep(10_000);
+          continue;
+        }
+        data = (await res.json()) as OverpassResponse;
+        console.log(`✓ Received ${data.elements.length} OSM elements from ${endpoint}`);
+        break outer;
+      } catch (err: unknown) {
+        lastError = String(err);
+        console.log(`   ✗ ${lastError}`);
+        if (attempt < 3) await sleep(5_000);
+      }
+    }
+    console.log(`   All attempts failed for ${endpoint}, trying next endpoint…`);
+  }
+
+  if (!data) throw new Error(`All Overpass endpoints failed. Last error: ${lastError}`);
 
   // 4. Process
   const counter = makeCounter();

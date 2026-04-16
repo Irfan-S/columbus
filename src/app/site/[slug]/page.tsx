@@ -245,11 +245,58 @@ export default async function SiteDetailPage({ params }: PageProps) {
           </div>
 
           {creator && (
-            <p className="mb-8 text-xs text-muted-foreground">
+            <p className="mb-1 text-xs text-muted-foreground">
               Added by {creator.displayName} ({creator.certAgency}{" "}
               {creator.certLevel})
             </p>
           )}
+
+          {/* Data source attribution */}
+          <p className="mb-8 text-xs text-muted-foreground">
+            {site.dataSource === "osm" || site.dataSource === "divevibe" ? (
+              <>
+                Site data ©{" "}
+                <a
+                  href="https://www.openstreetmap.org/copyright"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  OpenStreetMap contributors
+                </a>{" "}
+                (<a
+                  href="https://opendatacommons.org/licenses/odbl/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  ODbL 1.0
+                </a>)
+              </>
+            ) : site.dataSource === "diveboard" ? (
+              <>
+                Site data from{" "}
+                <a
+                  href="https://www.diveboard.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  Diveboard
+                </a>{" "}
+                (<a
+                  href="https://creativecommons.org/licenses/by-nc-nd/3.0/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  CC BY-NC-ND 3.0
+                </a>)
+              </>
+            ) : (
+              <>© Columbus contributors</>
+            )}
+          </p>
 
           {/* Would dive again rating */}
           <div className="mb-8">

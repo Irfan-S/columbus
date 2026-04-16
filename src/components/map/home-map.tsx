@@ -11,8 +11,9 @@ interface HomeMapProps {
   loggedIn?: boolean;
   userVotes?: Record<string, boolean>;
   userComparisons?: Record<string, boolean>;
+  totalSites?: number;
 }
 
-export function HomeMap({ sites, similarityCounts = {}, heroImages = {}, ratingData = {}, loggedIn = false, userVotes = {}, userComparisons = {} }: HomeMapProps) {
-  return <DiveMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} ratingData={ratingData} loggedIn={loggedIn} userVotes={userVotes} userComparisons={userComparisons} />;
+export function HomeMap({ sites, similarityCounts = {}, heroImages = {}, ratingData = {}, loggedIn = false, userVotes = {}, userComparisons = {}, totalSites }: HomeMapProps) {
+  return <DiveMap sites={sites} similarityCounts={similarityCounts} heroImages={heroImages} ratingData={ratingData} loggedIn={loggedIn} userVotes={userVotes} userComparisons={userComparisons} totalSites={totalSites} />;
 }

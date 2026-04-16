@@ -460,6 +460,7 @@ Divers frequently lack connectivity — remote islands, liveaboards, developing 
 - [x] "Would you dive here again?" thumbs up/down rating on site detail pages
 - [x] Rating overview (% + progress bar) in map popup with inline vote buttons
 - [x] Geolocation-based sort on search page (nearest first)
+- [x] Data attribution compliance — OSM (ODbL 1.0), Diveboard (CC BY-NC-ND 3.0), Columbus contributors; shown in global footer, per-site detail, and Mapbox attribution control
 
 ### Phase 5: Future
 - [ ] Offline mode with queued similarity submissions

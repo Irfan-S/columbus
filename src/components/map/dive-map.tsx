@@ -1,11 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { Search, X } from "lucide-react";
 import type { DiveSite } from "@/db/schema";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+const DEFAULT_CENTER: [number, number] = [20, 15];
+const DEFAULT_ZOOM = 1.8;
+
+function normalise(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function fuzzyMatch(query: string, ...fields: string[]): boolean {
+  const words = normalise(query).split(" ").filter(Boolean);
+  const haystack = fields.map(normalise).join(" ");
+  return words.every((w) => haystack.includes(w));
+}
 
 interface DiveMapProps {
   sites: DiveSite[];
@@ -20,6 +34,7 @@ interface DiveMapProps {
   center?: [number, number];
   zoom?: number;
   className?: string;
+  totalSites?: number;
 }
 
 type PinType = "default" | "rated" | "compared" | "both";
@@ -193,11 +208,14 @@ export function DiveMap({
   userComparisons = {},
   onSiteClick,
   interactive = true,
-  center = [20, 15],
-  zoom = 1.8,
+  center = DEFAULT_CENTER,
+  zoom = DEFAULT_ZOOM,
   className = "h-full w-full",
+  totalSites,
 }: DiveMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [matchCount, setMatchCount] = useState(totalSites ?? 0);
   const map = useRef<mapboxgl.Map | null>(null);
   const sitesRef = useRef(sites);
   sitesRef.current = sites;
@@ -248,6 +266,10 @@ export function DiveMap({
       zoom,
       projection: "globe",
       interactive,
+      customAttribution: [
+        'Dive site data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>',
+        '<a href="https://www.diveboard.com" target="_blank" rel="noopener noreferrer">Diveboard</a> (<a href="https://creativecommons.org/licenses/by-nc-nd/3.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-ND 3.0</a>)',
+      ].join(" · "),
     });
 
     mapInstance.on("style.load", () => {
@@ -341,6 +363,8 @@ export function DiveMap({
         clusterMaxZoom: 14,
         clusterRadius: 50,
       });
+
+      setMatchCount(sitesRef.current.length);
 
       // Cluster circles
       mapInstance.addLayer({
@@ -567,11 +591,71 @@ export function DiveMap({
     });
   }, [sites]);
 
+  // Search: filter visible pins + auto-navigate to results
+  useEffect(() => {
+    if (totalSites === undefined) return; // search only on the main map
+
+    const timer = setTimeout(() => {
+      const mapInstance = map.current;
+      if (!mapInstance || !mapInstance.isStyleLoaded()) return;
+      const source = mapInstance.getSource("sites") as mapboxgl.GeoJSONSource;
+      if (!source) return;
+
+      const q = searchQuery.trim();
+      const allSites = sitesRef.current;
+
+      const matched = q
+        ? allSites.filter((s) => fuzzyMatch(q, s.name, s.country, s.region))
+        : allSites;
+
+      setMatchCount(matched.length);
+
+      source.setData({
+        type: "FeatureCollection",
+        features: matched.map((site) => ({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [site.longitude, site.latitude] },
+          properties: {
+            id: site.id,
+            name: site.name,
+            slug: site.slug,
+            country: site.country,
+            region: site.region,
+            difficulty: site.difficulty,
+            siteTypes: JSON.stringify(site.siteTypes),
+            hasRated: site.id in userVotesRef.current,
+            hasCompared: !!userComparisonsRef.current[site.id],
+          },
+        })),
+      });
+
+      if (!q || matched.length === 0) return;
+
+      if (matched.length === 1) {
+        mapInstance.flyTo({
+          center: [matched[0].longitude, matched[0].latitude],
+          zoom: 12,
+          duration: 700,
+        });
+      } else {
+        const lngs = matched.map((s) => s.longitude);
+        const lats = matched.map((s) => s.latitude);
+        mapInstance.fitBounds(
+          [
+            [Math.min(...lngs), Math.min(...lats)],
+            [Math.max(...lngs), Math.max(...lats)],
+          ],
+          { padding: 80, maxZoom: matched.length <= 10 ? 10 : 6, duration: 700 }
+        );
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, totalSites]);
+
   if (!MAPBOX_TOKEN) {
     return (
-      <div
-        className={`${className} flex items-center justify-center bg-muted`}
-      >
+      <div className={`${className} flex items-center justify-center bg-muted`}>
         <p className="text-sm text-muted-foreground">
           Set NEXT_PUBLIC_MAPBOX_TOKEN to enable the map
         </p>
@@ -579,5 +663,44 @@ export function DiveMap({
     );
   }
 
-  return <div ref={mapContainer} className={className} />;
+  return (
+    <div className={`relative ${className}`}>
+      <div ref={mapContainer} className="h-full w-full" />
+
+      {/* Search overlay — only on the main map */}
+      {totalSites !== undefined && (
+        <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-10 w-72 sm:w-80 pointer-events-none">
+          <div className="flex items-center gap-2 rounded-full bg-background/90 px-4 py-2 shadow-lg backdrop-blur pointer-events-auto">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search dive sites…"
+              className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+            {searchQuery ? (
+              <button
+                onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
+                className="shrink-0 cursor-pointer"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            ) : (
+              <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                {matchCount.toLocaleString()} sites
+              </span>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-center text-xs text-muted-foreground mt-1.5 drop-shadow-sm">
+              {matchCount === 0
+                ? "No matches"
+                : `${matchCount.toLocaleString()} result${matchCount === 1 ? "" : "s"}`}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }

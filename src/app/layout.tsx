@@ -46,6 +46,19 @@ export default function RootLayout({
           {children}
           <BottomNav />
         </TooltipProvider>
+        <footer className="text-xs text-muted-foreground text-center py-2 px-4 border-t mb-16 sm:mb-0">
+          © Columbus contributors · Dive site data:{" "}
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+            © OpenStreetMap contributors
+          </a>{" "}
+          (<a href="https://opendatacommons.org/licenses/odbl/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">ODbL 1.0</a>
+          ) ·{" "}
+          <a href="https://www.diveboard.com" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+            Diveboard
+          </a>{" "}
+          (<a href="https://creativecommons.org/licenses/by-nc-nd/3.0/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">CC BY-NC-ND 3.0</a>
+          ) · © Mapbox
+        </footer>
         <ServiceWorkerRegister />
       </body>
     </html>
