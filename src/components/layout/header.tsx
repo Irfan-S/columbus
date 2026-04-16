@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SiteGuide, guideOpenRef } from "@/components/guide/site-guide";
 import type { Profile } from "@/db/schema";
 
 export function Header({ profile }: { profile: Profile | null }) {
@@ -42,6 +44,15 @@ export function Header({ profile }: { profile: Profile | null }) {
           <Link href="/search">
             <Button variant="ghost" size="sm">Search</Button>
           </Link>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Open guide"
+            onClick={() => guideOpenRef.current?.()}
+          >
+            <CircleHelp />
+          </Button>
 
           {profile ? (
             <>
@@ -83,6 +94,7 @@ export function Header({ profile }: { profile: Profile | null }) {
           )}
         </nav>
       </div>
+      <SiteGuide />
     </header>
   );
 }
