@@ -12,15 +12,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    const pattern = `%${q}%`;
+    // Normalise both query and DB columns: strip punctuation so "jacksons bar"
+    // matches "Jackson's Bar", "st johns" matches "St. John's", etc.
+    const normalized = q.replace(/[^a-z0-9 ]/gi, "").replace(/\s+/g, " ").trim();
+    const pattern = `%${normalized}%`;
     const results = await db
       .select()
       .from(diveSites)
       .where(
         or(
-          ilike(diveSites.name, pattern),
-          ilike(diveSites.country, pattern),
-          ilike(diveSites.region, pattern)
+          sql`regexp_replace(lower(${diveSites.name}), '[^a-z0-9 ]', '', 'g') ilike ${pattern}`,
+          sql`regexp_replace(lower(${diveSites.country}), '[^a-z0-9 ]', '', 'g') ilike ${pattern}`,
+          sql`regexp_replace(lower(${diveSites.region}), '[^a-z0-9 ]', '', 'g') ilike ${pattern}`
         )
       )
       .limit(10);

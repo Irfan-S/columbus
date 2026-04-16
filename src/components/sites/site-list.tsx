@@ -65,13 +65,17 @@ export function SiteList({ sites, similarityCounts = {}, imageCounts = {} }: Sit
   }, [userCoords]);
 
   const filtered = useMemo(() => {
+    // Strip punctuation so "jacksons bar" matches "Jackson's Bar", etc.
+    const normalise = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+
     let result = sites.filter((site) => {
       if (query) {
-        const q = query.toLowerCase();
+        const q = normalise(query);
         const matches =
-          site.name.toLowerCase().includes(q) ||
-          site.country.toLowerCase().includes(q) ||
-          site.region.toLowerCase().includes(q);
+          normalise(site.name).includes(q) ||
+          normalise(site.country).includes(q) ||
+          normalise(site.region).includes(q);
         if (!matches) return false;
       }
       if (difficulty && site.difficulty !== difficulty) return false;
