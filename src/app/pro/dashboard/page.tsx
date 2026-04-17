@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pencil } from "lucide-react";
+import { DeleteSiteButton } from "@/components/sites/delete-site-button";
 
 export default async function ProDashboardPage() {
   const profile = await getProfile();
@@ -83,6 +84,7 @@ export default async function ProDashboardPage() {
                         <span className="sr-only">Edit</span>
                       </Button>
                     </Link>
+                    <DeleteSiteButton siteId={site.id} siteName={site.name} />
                   </div>
                 </CardContent>
               </Card>

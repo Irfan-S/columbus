@@ -26,6 +26,28 @@ export async function GET(_req: Request, { params }: RouteContext) {
   }
 }
 
+export async function DELETE(_req: Request, { params }: RouteContext) {
+  const { id } = await params;
+  try {
+    const profile = await getProfile();
+    if (!profile) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const [site] = await db.select().from(diveSites).where(eq(diveSites.id, id)).limit(1);
+    if (!site) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    if (profile.role !== "admin" && site.createdBy !== profile.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await db.delete(diveSites).where(eq(diveSites.id, id));
+    // Cascades handle: similarities → similarity_history + images,
+    // site images, site_ratings, site_description_suggestions
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: Request, { params }: RouteContext) {
   const { id } = await params;
 

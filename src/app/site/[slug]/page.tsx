@@ -16,6 +16,7 @@ import { SiteImages } from "@/components/sites/site-images";
 import { NearbySites } from "@/components/sites/nearby-sites";
 import { SuggestDescription } from "@/components/sites/suggest-description";
 import { DiveAgainRating } from "@/components/sites/dive-again-rating";
+import { DeleteSiteButton } from "@/components/sites/delete-site-button";
 import { getNearbySites } from "@/lib/geo";
 import type { Metadata } from "next";
 import type { DiveSite } from "@/db/schema";
@@ -225,6 +226,13 @@ export default async function SiteDetailPage({ params }: PageProps) {
                 <Badge variant="outline">~{site.typicalVisibilityM}m visibility</Badge>
               )}
             </div>
+
+            {/* Owner / admin actions */}
+            {(profile?.id === site.createdBy || profile?.role === "admin") && (
+              <div className="mt-3">
+                <DeleteSiteButton siteId={site.id} siteName={site.name} redirectTo="/" />
+              </div>
+            )}
           </div>
 
           {/* Image gallery */}
